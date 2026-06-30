@@ -1,0 +1,32 @@
+@import 'tailwindcss';
+
+/*
+ * Design tokens from context/ui-context.md, exposed as Tailwind v4 theme colors.
+ * Utilities map cleanly: bg-base / bg-surface / bg-raised / text-primary /
+ * text-muted / text-accent / border-line / *-error / *-success.
+ * Components must use these tokens — never hardcoded hex (code-standards.md).
+ */
+@theme {
+  --color-base: #0a0a0b;
+  --color-surface: #141417;
+  --color-raised: #1c1c21;
+  --color-primary: #ececee;
+  --color-muted: #8a8a93;
+  --color-accent: #6e56f7;
+  --color-line: #232328;
+  --color-error: #f0506e;
+  --color-success: #2ecc71;
+
+  --font-sans: 'Geist Sans', 'Inter', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'Geist Mono', 'JetBrains Mono', ui-monospace, monospace;
+}
+
+:root {
+  color-scheme: dark;
+}
+
+body {
+  margin: 0;
+  background-color: var(--color-base);
+  color: var(--color-primary);
+}
