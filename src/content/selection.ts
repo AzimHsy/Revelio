@@ -1,14 +1,22 @@
 import type { FromContentMessage, SelectedTarget } from '../lib/types'
 import { hideOverlay, showOverlay } from './overlay'
 
-// Click-to-select inspection mode: hover highlights the element under the
-// cursor, click selects it, Escape cancels. Listeners run in the capture
-// phase so the selecting click never reaches the page.
+// Click-to-select inspection mode with a steerable "current target": hover sets
+// the target, but the keyboard can walk the DOM from there — ArrowUp/Down =
+// parent/child, ArrowLeft/Right = siblings — so containers that intercept the
+// hover (overlays, full-bleed <a> wrappers) no longer trap you. Enter (or click)
+// selects the current target; Escape cancels. Listeners run in the capture phase
+// so the selecting click never reaches the page.
 
 type Emit = (msg: FromContentMessage) => void
 
 let active = false
 let emit: Emit | null = null
+// The element currently targeted (highlighted). Hover sets it; the arrow keys
+// walk the DOM from it; Enter/click selects it.
+let current: Element | null = null
+// Last known cursor position — the anchor for z-stack piercing (Unit 2).
+const pointer = { x: 0, y: 0 }
 
 export function isInspecting(): boolean {
   return active
@@ -18,7 +26,9 @@ export function startInspect(send: Emit): void {
   if (active) return
   active = true
   emit = send
+  current = null
   document.addEventListener('mouseover', onMouseOver, true)
+  document.addEventListener('mousemove', onMouseMove, true)
   document.addEventListener('click', onClick, true)
   document.addEventListener('keydown', onKeyDown, true)
   send({ type: 'INSPECT_STARTED' })
@@ -29,36 +39,85 @@ export function stopInspect(options: { cancelled: boolean }): void {
   const send = emit
   active = false
   emit = null
+  current = null
   document.removeEventListener('mouseover', onMouseOver, true)
+  document.removeEventListener('mousemove', onMouseMove, true)
   document.removeEventListener('click', onClick, true)
   document.removeEventListener('keydown', onKeyDown, true)
   hideOverlay()
   if (options.cancelled) send?.({ type: 'INSPECT_CANCELLED' })
 }
 
+// Set + highlight the current target. Ignores our own overlay node.
+function setCurrent(el: Element | null): void {
+  if (!el || el.id === 'revelio-overlay') return
+  current = el
+  showOverlay(el)
+}
+
+function onMouseMove(event: MouseEvent): void {
+  pointer.x = event.clientX
+  pointer.y = event.clientY
+}
+
 function onMouseOver(event: MouseEvent): void {
-  const el = event.target
-  if (el instanceof Element && el.id !== 'revelio-overlay') showOverlay(el)
+  if (event.target instanceof Element) setCurrent(event.target)
 }
 
 function onClick(event: MouseEvent): void {
-  const el = event.target
-  if (!(el instanceof Element)) return
   event.preventDefault()
   event.stopPropagation()
-  const send = emit
-  const target = describeElement(el)
-  stopInspect({ cancelled: false })
-  // payload is filled in by the entry module (extraction bridge) before relay.
-  send?.({ type: 'ELEMENT_SELECTED', target, payload: null })
+  if (event.target instanceof Element) setCurrent(event.target)
+  selectCurrent()
 }
 
 function onKeyDown(event: KeyboardEvent): void {
-  if (event.key === 'Escape') {
-    event.preventDefault()
-    event.stopPropagation()
-    stopInspect({ cancelled: true })
+  switch (event.key) {
+    case 'Escape':
+      stop(event, () => stopInspect({ cancelled: true }))
+      break
+    case 'Enter':
+      stop(event, selectCurrent)
+      break
+    case 'ArrowUp':
+      stop(event, () => traverse((el) => el.parentElement))
+      break
+    case 'ArrowDown':
+      stop(event, () => traverse((el) => el.firstElementChild))
+      break
+    case 'ArrowLeft':
+      stop(event, () => traverse((el) => el.previousElementSibling))
+      break
+    case 'ArrowRight':
+      stop(event, () => traverse((el) => el.nextElementSibling))
+      break
   }
+}
+
+// Consume the event (so arrows don't scroll the page / Enter doesn't submit)
+// then run the action.
+function stop(event: Event, action: () => void): void {
+  event.preventDefault()
+  event.stopPropagation()
+  action()
+}
+
+function traverse(step: (el: Element) => Element | null): void {
+  if (!current) return
+  const next = step(current)
+  // Don't climb into <html> or onto our own overlay.
+  if (next && next !== document.documentElement && next.id !== 'revelio-overlay') {
+    setCurrent(next)
+  }
+}
+
+function selectCurrent(): void {
+  if (!current) return
+  const target = describeElement(current)
+  const send = emit
+  stopInspect({ cancelled: false })
+  // payload is filled in by the entry module (extraction bridge) before relay.
+  send?.({ type: 'ELEMENT_SELECTED', target, payload: null })
 }
 
 export function describeElement(el: Element): SelectedTarget {
