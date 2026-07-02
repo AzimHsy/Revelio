@@ -15,7 +15,7 @@ export default defineManifest({
     default_path: 'src/sidepanel/index.html',
   },
   background: {
-    service_worker: 'src/background/index.ts',
+    service_worker: 'src/background/worker.ts',
     type: 'module',
   },
   content_scripts: [
