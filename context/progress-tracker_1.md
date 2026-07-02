@@ -4,11 +4,12 @@ Update this file after every meaningful implementation change.
 
 ## Current Phase
 
-- Side panel shell complete — panel opens via `chrome.sidePanel` and renders the idle state.
+- Content script complete — click-to-select, `Ctrl+Shift+A` capture, highlight overlay.
 
 ## Current Goal
 
-- Content script — click-to-select + `Ctrl+Shift+A`, highlight overlay (Next Up #1).
+- MAIN-world injected extractor — read `window.gsap` / `ScrollTrigger`, serialize to JSON
+  (Next Up #1).
 
 ## Completed
 
@@ -40,16 +41,32 @@ Update this file after every meaningful implementation change.
   - Added `lucide-react` (icon library per ui-context.md; `h-4 w-4` inline).
   - All styling via the `@theme` tokens — no hardcoded hex.
 
+- **Content script** — selection + capture in the isolated world, registered in the
+  manifest (`http/https`, `document_idle`).
+  - `src/lib/types.ts` — start of the single typed message contract
+    (`ToContentMessage` / `FromContentMessage`, `SelectedTarget` payload). Grows
+    with each unit; plain JSON only.
+  - `src/content/selection.ts` — inspect mode: hover highlights, capture-phase
+    click selects (never reaches the page), Escape cancels. Emits
+    `ELEMENT_SELECTED` with a best-effort selector (unique `#id` or a short
+    `tag.class:nth-of-type` path, max 4 levels).
+  - `src/content/overlay.ts` — the highlight box; the only DOM Revelio adds to a
+    page (invariant 5). Accent color comes from `src/lib/tokens.ts` (Tailwind
+    `@theme` doesn't exist inside inspected pages).
+  - `src/content/index.ts` — entry: `START_INSPECT` / `STOP_INSPECT` handler +
+    `Ctrl+Shift+A` → `SECTION_CAPTURED` (viewport bounds).
+  - Emitted messages have no background listener yet (broker is a later unit);
+    they log via `console.debug` for manual verification.
+
 ## In Progress
 
 - None.
 
 ## Next Up
 
-1. Content script — click-to-select + `Ctrl+Shift+A`, highlight overlay.
-2. MAIN-world injected extractor — read `window.gsap` / `ScrollTrigger`, serialize to JSON.
-3. Messaging contract — injected → content → background → sidepanel (wires the
-   Inspect button + live status chip in the panel header).
+1. MAIN-world injected extractor — read `window.gsap` / `ScrollTrigger`, serialize to JSON.
+2. Background broker — relay `injected → content → background → sidepanel`.
+3. Sidepanel wiring — enable the Inspect button + live status chip.
 4. Background Claude call — read key from storage, send payload, parse structured response.
 5. Result rendering — concept, explanation, code, parameters in the panel.
 
@@ -57,8 +74,9 @@ Update this file after every meaningful implementation change.
 
 - **Obfuscated / minified GSAP**: when `tween.vars` is readable but selector/IDs are
   mangled, how much do we lean on Claude vs raw values? Decide the fallback.
-- **`Ctrl+Shift+A` scope**: what exactly defines "current section" — the viewport bounds,
-  the nearest semantic `<section>`, or the largest pinned ScrollTrigger in view?
+- ~~**`Ctrl+Shift+A` scope**~~ **Resolved (V1)**: "current section" = the visible viewport
+  bounds. Revisit (nearest `<section>` / pinned ScrollTrigger) if viewport captures prove
+  too noisy in practice.
 - **CSS-only elements**: what does the output look like when an element animates via CSS
   with no GSAP present? (Still useful — define the shape.)
 - **ScrollTrigger capture**: `ScrollTrigger.getAll()` returns all triggers, but values

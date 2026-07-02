@@ -18,5 +18,12 @@ export default defineManifest({
     service_worker: 'src/background/index.ts',
     type: 'module',
   },
+  content_scripts: [
+    {
+      js: ['src/content/index.ts'],
+      matches: ['http://*/*', 'https://*/*'],
+      run_at: 'document_idle',
+    },
+  ],
   permissions: ['sidePanel', 'storage'],
 })
