@@ -52,4 +52,13 @@ export default defineManifest({
     sandbox:
       "sandbox allow-scripts; default-src 'none'; script-src 'self' 'unsafe-eval'; style-src 'unsafe-inline'; img-src * data: blob:; font-src * data:",
   },
+  // The panel embeds the sandbox page in an <iframe>; MV3 blocks framing an
+  // extension page ("This page has been blocked by Chrome") unless it is declared
+  // web-accessible.
+  web_accessible_resources: [
+    {
+      resources: ['src/sandbox/preview.html'],
+      matches: ['<all_urls>'],
+    },
+  ],
 })
