@@ -4,13 +4,15 @@ Update this file after every meaningful implementation change.
 
 ## Current Phase
 
-- Claude analysis wired in the background — captures auto-analyze; results/errors
-  broadcast to the panel. Panel-side rendering + API key input remain.
+- **V1 pipeline complete** — inspect/capture → MAIN-world extraction → Claude analysis →
+  concept/explanation/code/parameters rendered in the panel, with API key onboarding.
+  All six build units done; `npm run build` green.
 
 ## Current Goal
 
-- Result rendering — concept, explanation, code, parameters in the panel, plus the
-  API key input (Next Up #1).
+- End-to-end verification on a real GSAP site (success criteria in
+  project-overview.md): load unpacked, set the API key, click an animated element,
+  confirm concept + usable GSAP code; verify `Ctrl+Shift+A` on a scroll-driven section.
 
 ## Completed
 
@@ -114,14 +116,26 @@ Update this file after every meaningful implementation change.
     panel-facing messages (`missingKey` flag for auth problems).
   - Broker broadcasts `ANALYSIS_STARTED` / `ANALYSIS_RESULT` / `ANALYSIS_ERROR`.
 
+- **Result rendering + API key onboarding** — the panel now completes the loop.
+  - `src/sidepanel/components/ResultView.tsx` — stacked sections in spec order:
+    concept → explanation → code → parameters.
+  - `src/sidepanel/components/CodeBlock.tsx` — full-width mono block with a
+    corner Copy button (clipboard + copied feedback).
+  - `src/sidepanel/components/ApiKeyForm.tsx` — appears when analysis fails
+    with `missingKey` (no key set, or Claude rejected it); saves via
+    `src/lib/storage.ts`.
+  - `useInspection` tracks `result` / `analysisError`; status chip shows
+    `Analyzing…` with a spinner line under the capture summary.
+
 ## In Progress
 
 - None.
 
 ## Next Up
 
-1. Result rendering — concept, explanation, code, parameters in the panel; API key
-   input (panel shows it when analysis fails with `missingKey`).
+1. Manual end-to-end verification on a real GSAP site (see Current Goal).
+2. Optional (in scope per architecture.md but not yet built): persist the last N
+   analysis results in `chrome.storage.local` for quick re-view.
 
 ## Open Questions
 

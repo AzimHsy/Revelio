@@ -42,7 +42,6 @@ export default function CaptureSummary({ capture }: { capture: Capture }) {
           extraction.
         </p>
       )}
-      <p className="text-xs text-muted">AI analysis arrives in the next build step.</p>
     </section>
   )
 }
