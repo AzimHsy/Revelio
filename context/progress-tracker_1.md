@@ -4,11 +4,11 @@ Update this file after every meaningful implementation change.
 
 ## Current Phase
 
-- Scaffold complete — toolchain in place, side panel loads in Chrome.
+- Side panel shell complete — panel opens via `chrome.sidePanel` and renders the idle state.
 
 ## Current Goal
 
-- Side panel shell — open via `chrome.sidePanel`, render the idle state (Next Up #1).
+- Content script — click-to-select + `Ctrl+Shift+A`, highlight overlay (Next Up #1).
 
 ## Completed
 
@@ -28,18 +28,30 @@ Update this file after every meaningful implementation change.
     `text-primary`, `text-muted`, `text-accent`, `border-line`, `*-error`, `*-success`).
   - `npm run build` passes (`tsc --noEmit && vite build`).
 
+- **Side panel shell** — header + idle state per ui-context.md layout patterns.
+  - `src/sidepanel/components/Header.tsx` — app name, status chip (`idle` /
+    `inspecting` / `analyzing` display states), and an Inspect button rendered
+    **disabled** until the content script exists (Next Up #1). Panel stays
+    presentational — no page access, no messaging.
+  - `src/sidepanel/components/IdleState.tsx` — idle prompt: click an element or
+    press `Ctrl+Shift+A` (rendered as a `<kbd>` chip).
+  - `src/sidepanel/App.tsx` — single vertical column composing Header + body;
+    status hardcoded to `'idle'` until the messaging contract lands (Next Up #3).
+  - Added `lucide-react` (icon library per ui-context.md; `h-4 w-4` inline).
+  - All styling via the `@theme` tokens — no hardcoded hex.
+
 ## In Progress
 
 - None.
 
 ## Next Up
 
-1. Side panel shell — open via `chrome.sidePanel`, render idle state.
-2. Content script — click-to-select + `Ctrl+Shift+A`, highlight overlay.
-3. MAIN-world injected extractor — read `window.gsap` / `ScrollTrigger`, serialize to JSON.
-4. Messaging contract — injected → content → background → sidepanel.
-5. Background Claude call — read key from storage, send payload, parse structured response.
-6. Result rendering — concept, explanation, code, parameters in the panel.
+1. Content script — click-to-select + `Ctrl+Shift+A`, highlight overlay.
+2. MAIN-world injected extractor — read `window.gsap` / `ScrollTrigger`, serialize to JSON.
+3. Messaging contract — injected → content → background → sidepanel (wires the
+   Inspect button + live status chip in the panel header).
+4. Background Claude call — read key from storage, send payload, parse structured response.
+5. Result rendering — concept, explanation, code, parameters in the panel.
 
 ## Open Questions
 

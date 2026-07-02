@@ -1,10 +1,17 @@
+import Header from './components/Header'
+import IdleState from './components/IdleState'
+
+// Side panel shell: single vertical column — header (status + controls), then
+// the body. Result sections (concept → explanation → code → parameters) replace
+// the idle state once analysis exists (Next Up #6). Status is hardcoded to
+// 'idle' until the messaging contract lands (Next Up #4).
 export default function App() {
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center gap-3 bg-base p-6 font-sans text-primary">
-      <h1 className="text-lg font-semibold text-accent">Revelio</h1>
-      <p className="max-w-xs text-center text-sm text-muted">
-        Scaffold loaded — the side panel is alive. Inspection and analysis come next.
-      </p>
+    <div className="flex min-h-screen flex-col bg-base font-sans text-primary">
+      <Header status="idle" />
+      <main className="flex flex-1 flex-col">
+        <IdleState />
+      </main>
     </div>
   )
 }
