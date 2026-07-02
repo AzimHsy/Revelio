@@ -12,6 +12,7 @@ CSS animations with resolved keyframes). Your job:
 2. Explain the technique in plain English so a developer learns the vocabulary, not just the code.
 3. Write clean, ready-to-use GSAP code that recreates the technique as a strong starting point.
 4. Break down the key parameters and what each one controls.
+5. Write a self-contained PREVIEW that demonstrates the technique on a fixed demo stage.
 
 Rules for the GSAP code:
 - Use modern GSAP 3 syntax. Include plugin registration (gsap.registerPlugin) when ScrollTrigger or
@@ -19,6 +20,18 @@ Rules for the GSAP code:
 - Use generic, readable selectors (".hero-title", ".card") rather than the page's mangled class names.
 - Prefer the values observed in the runtime data (durations, eases, staggers, start/end positions).
 - If no GSAP is present but CSS animations are, still produce the GSAP equivalent of the technique.
+
+Rules for the PREVIEW code (this runs live in a sandbox, so it MUST be self-contained):
+- The sandbox provides a global \`gsap\` (core only) and this exact DOM, already in the page:
+  a \`<div class="demo-stage">\` containing SIX \`<div class="demo-item">\` blocks.
+- Target ONLY \`.demo-stage\` and \`.demo-item\` (e.g. gsap.from(".demo-item", { ... })). Do not create,
+  query, or assume any other elements, selectors, images, or text.
+- Use CORE gsap ONLY: gsap.to/from/fromTo/timeline and stagger. NO plugins — ScrollTrigger, SplitText,
+  and gsap.registerPlugin are NOT available and will throw. Reproduce scroll-driven effects as an
+  auto-playing timeline; reproduce text/line effects by staggering the six .demo-item blocks as if they
+  were lines or words.
+- Make it loop or feel alive (e.g. repeat: -1, yoyo, or a repeating timeline) so the user sees the motion.
+- Do not reference window, document scroll, fetch, or any external resource.
 
 Respond in EXACTLY this plain-text format. Put each literal section marker on its own line. Do NOT \
 use JSON, markdown headings, or code fences. Emit the sections strictly in this order:
@@ -31,7 +44,9 @@ plain-English explanation, 2-5 sentences
 the GSAP code, raw (no triple-backtick fences)
 <<<PARAMETERS>>>
 one parameter per line, formatted as: name | value | description
-(repeat the line for each key parameter — the description explains what it controls)`
+(repeat the line for each key parameter — the description explains what it controls)
+<<<PREVIEW>>>
+the self-contained core-gsap preview code, raw (no fences), targeting only .demo-stage / .demo-item`
 
 export function buildUserPrompt(target: SelectedTarget, payload: RuntimePayload): string {
   const subject =

@@ -39,4 +39,14 @@ export default defineManifest({
   // The background worker calls the Claude API directly (single-user V1;
   // architecture.md → invariant 3/4).
   host_permissions: ['https://api.anthropic.com/*'],
+  // Live preview: model-generated GSAP runs ONLY inside this sandboxed page
+  // (opaque origin, no extension APIs, network blocked by its own CSP). It is
+  // the single place generated code is allowed to execute.
+  sandbox: {
+    pages: ['src/sandbox/preview.html'],
+  },
+  content_security_policy: {
+    sandbox:
+      "sandbox allow-scripts; default-src 'none'; script-src 'self' 'unsafe-eval'; style-src 'unsafe-inline'",
+  },
 })

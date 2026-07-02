@@ -1,6 +1,7 @@
 import { Sparkles } from 'lucide-react'
 import type { AnalysisResult } from '../../lib/types'
 import CodeBlock from './CodeBlock'
+import PreviewStage from './PreviewStage'
 
 // Analysis result, stacked in spec order: concept → explanation → code →
 // parameters (ui-context.md → Layout Patterns). Renders partial results too —
@@ -56,6 +57,11 @@ export default function ResultView({
           <CodeBlock code={result.gsapCode} />
         </section>
       )}
+
+      {/* Only run the preview once streaming has finished — partial code
+          mid-stream would be a syntax error, and re-mounting the iframe every
+          120ms partial is wasteful. */}
+      {!streaming && result.previewCode && <PreviewStage code={result.previewCode} />}
 
       {hasParams && (
         <section className="flex flex-col gap-1.5">

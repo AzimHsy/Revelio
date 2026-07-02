@@ -4,9 +4,11 @@ Update this file after every meaningful implementation change.
 
 ## Current Phase
 
-- **V1 pipeline complete + streaming** — inspect/capture → MAIN-world extraction → Claude
-  analysis (streamed) → concept/explanation/code/parameters render progressively in the
-  panel, with API key onboarding. Verified live on gsap.com. `npm run build` green.
+- **V1 pipeline complete + streaming + previews** — inspect/capture → MAIN-world
+  extraction → Claude analysis (streamed) → concept/explanation/code/parameters render
+  progressively, plus a screenshot thumbnail of the inspected element and a live
+  sandboxed animation preview. API key onboarding included. V1 verified live on gsap.com;
+  the two preview units await a live sanity-check. `npm run build` green.
 
 ## Current Goal
 
@@ -202,20 +204,52 @@ Update this file after every meaningful implementation change.
   - Old history entries without `thumbnail` still render (field optional). `npm run
     build` green.
 
+- **Preview Unit 2 — live animation preview** — the panel showed GSAP code but you
+  couldn't *watch* it. Now the model also returns a self-contained preview that runs
+  live in a sandboxed iframe on a demo stage, with a Replay button.
+  - `src/lib/prompt.ts` — added a 5th job + a `<<<PREVIEW>>>` output section. Preview
+    code must be **core-gsap only** (no ScrollTrigger/SplitText — not in the sandbox),
+    target ONLY the provided `.demo-stage` / 6× `.demo-item`, loop/feel alive, and
+    reproduce scroll effects as an auto-playing timeline. `MAX_TOKENS` 3000→3500.
+  - `src/lib/analysis.ts` — `PREVIEW` added to `SECTION_RE`; `parseAnalysisText` now
+    fills `previewCode` (fence-stripped). `isComplete` unchanged → preview is optional,
+    so pre-feature history entries still render.
+  - `src/lib/types.ts` — `AnalysisResult.previewCode: string`.
+  - `src/manifest.config.ts` — `sandbox: { pages: ['src/sandbox/preview.html'] }` +
+    a restrictive `content_security_policy.sandbox` (`default-src 'none'; script-src
+    'self' 'unsafe-eval'; style-src 'unsafe-inline'` — network blocked, eval allowed
+    for `new Function`).
+  - `src/sandbox/preview.html` + `preview.ts` (new) — opaque-origin page bundling
+    `gsap` (new dep, 3.15.0). Builds the 6-item stage, listens for
+    `postMessage({type:'RUN_PREVIEW', code})`, resets (`globalTimeline.clear()` +
+    rebuild stage), runs the code via `new Function('gsap', code)(gsap)`, shows any
+    thrown error inline. Announces `PREVIEW_READY` to the parent.
+  - `src/sidepanel/components/PreviewStage.tsx` (new) — iframe
+    (`sandbox="allow-scripts"`, src via `chrome.runtime.getURL`) + Replay button; posts
+    the code on load / ready / code-change / Replay. Only SENDS a string — never acts on
+    iframe messages beyond re-posting.
+  - `ResultView` renders `PreviewStage` under the code block **only when not streaming**
+    (partial code mid-stream would be a syntax error; avoids re-mounting every 120ms).
+  - **crxjs**: auto-emitted `dist/src/sandbox/preview.html` + a bundled `preview.html-*.js`
+    (gsap inside) with no `rollupOptions.input` needed — the plan's flagged risk didn't
+    materialize. `npm run build` green.
+  - Generated code executes ONLY inside the sandbox (opaque origin, no extension APIs,
+    network-blocked) — it cannot reach the panel, the inspected page, the key, or storage.
+
 ## In Progress
 
-- **Preview Unit 2 — live animation preview** (next): sandboxed iframe runs Claude's
-  generated GSAP on a demo stage with a Replay button. Adds a `<<<PREVIEW>>>` prompt
-  section, `previewCode` on `AnalysisResult`, a manifest `sandbox` page bundling gsap,
-  and `PreviewStage.tsx`. See `.claude/plans/is-it-possible-if-warm-cloud.md`.
+- None. Both preview units built + building green; awaiting live verification in Chrome.
 
 ## Next Up
 
-1. Manual verification of Unit 1 on gsap.com — inspect an animated element, confirm the
-   thumbnail appears in the summary + on the new history row, and survives closing +
-   reopening the panel. **Reload the extension card after building.**
-2. Build Preview Unit 2 (live animation preview) per the plan file.
-3. Possible polish (not yet scoped): show capture timestamp on each history row.
+1. Manual verification on gsap.com (**reload the extension card after building**):
+   - Unit 1: inspect an animated element → thumbnail in the summary + on the history row;
+     survives closing/reopening the panel.
+   - Unit 2: under the GSAP code, the demo stage animates the technique; **Replay**
+     re-runs it; a pre-feature history entry (no `previewCode`) simply omits the preview.
+   - Watch for a sandbox CSP error in the iframe console — if `script-src 'self'` fails to
+     load the bundled preview script in the opaque origin, loosen the sandbox CSP.
+2. Possible polish (not yet scoped): show capture timestamp on each history row.
 
 ## Open Questions
 

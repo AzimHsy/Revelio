@@ -13,7 +13,7 @@ const PROGRESS_INTERVAL_MS = 120
 // and is never logged (invariant 4).
 
 const MODEL = 'claude-sonnet-4-6'
-const MAX_TOKENS = 3000
+const MAX_TOKENS = 3500 // room for the extra PREVIEW section
 // Safety rails so a slow/huge request can never run away (the payload digest
 // keeps input small; these bound the worst case regardless):
 const REQUEST_TIMEOUT_MS = 60_000 // hard cap per attempt

@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Revelio preview</title>
+    <style>
+      * {
+        margin: 0;
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        height: 100%;
+      }
+      body {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+        background: #131316;
+        font-family: system-ui, sans-serif;
+      }
+      .demo-stage {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        align-items: center;
+        justify-content: center;
+        width: 100%;
+        height: 100%;
+        padding: 24px;
+      }
+      .demo-item {
+        width: 44px;
+        height: 44px;
+        border-radius: 8px;
+        background: linear-gradient(135deg, #6366f1, #a855f7);
+      }
+      #error {
+        position: absolute;
+        right: 8px;
+        bottom: 8px;
+        left: 8px;
+        display: none;
+        padding: 6px 8px;
+        border-radius: 6px;
+        background: rgba(220, 38, 38, 0.15);
+        color: #fca5a5;
+        font-family: ui-monospace, monospace;
+        font-size: 11px;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="stage" class="demo-stage"></div>
+    <div id="error"></div>
+    <script type="module" src="./preview.ts"></script>
+  </body>
+</html>

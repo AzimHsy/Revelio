@@ -140,6 +140,12 @@ export interface AnalysisResult {
   /** Ready-to-use GSAP code. */
   gsapCode: string
   parameters: AnalysisParameter[]
+  /**
+   * Self-contained, core-gsap-only code that recreates the technique on the
+   * sandbox demo stage (no ScrollTrigger/SplitText). Optional — empty for
+   * captures analyzed before this feature, so old history still renders.
+   */
+  previewCode: string
 }
 
 /** Slim capture stats stored with a history entry (not the full payload). */

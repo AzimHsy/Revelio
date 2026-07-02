@@ -5,7 +5,7 @@ import type { AnalysisParameter, AnalysisResult } from './types'
 // (code-standards.md → parse defensively). Never throws — missing sections
 // come back as empty strings / an empty array; the caller validates the final.
 
-const SECTION_RE = /<<<(CONCEPT|EXPLANATION|CODE|PARAMETERS)>>>/g
+const SECTION_RE = /<<<(CONCEPT|EXPLANATION|CODE|PARAMETERS|PREVIEW)>>>/g
 
 export function parseAnalysisText(raw: string): AnalysisResult {
   // Drop a trailing partial marker mid-stream (e.g. "<<<PARA") so it never
@@ -29,6 +29,7 @@ export function parseAnalysisText(raw: string): AnalysisResult {
     explanation: sections['EXPLANATION'] ?? '',
     gsapCode: stripFences(sections['CODE'] ?? ''),
     parameters: parseParameters(sections['PARAMETERS'] ?? ''),
+    previewCode: stripFences(sections['PREVIEW'] ?? ''),
   }
 }
 
