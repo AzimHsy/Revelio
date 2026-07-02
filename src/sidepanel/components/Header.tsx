@@ -1,19 +1,23 @@
-import { Crosshair } from 'lucide-react'
+import { Crosshair, X } from 'lucide-react'
+import type { PanelStatus } from '../useInspection'
 
 interface HeaderProps {
-  status: 'idle' | 'inspecting' | 'analyzing'
+  status: PanelStatus
+  onStartInspect: () => void
+  onStopInspect: () => void
 }
 
-const statusLabel: Record<HeaderProps['status'], string> = {
+const statusLabel: Record<PanelStatus, string> = {
   idle: 'Idle',
   inspecting: 'Inspecting…',
   analyzing: 'Analyzing…',
 }
 
-// Panel header: app name, current status, and the inspect control.
-// The inspect button is disabled until the content script exists (Next Up #2)
-// — the panel never touches the page directly (architecture.md).
-export default function Header({ status }: HeaderProps) {
+// Panel header: app name, current status, and the inspect control. The button
+// only sends commands to the background — the panel never touches the page
+// directly (architecture.md).
+export default function Header({ status, onStartInspect, onStopInspect }: HeaderProps) {
+  const inspecting = status === 'inspecting'
   return (
     <header className="flex items-center justify-between border-b border-line bg-surface px-4 py-3">
       <div className="flex items-center gap-2">
@@ -27,12 +31,12 @@ export default function Header({ status }: HeaderProps) {
       </div>
       <button
         type="button"
-        disabled
-        title="Element inspection arrives with the content script"
+        disabled={status === 'analyzing'}
+        onClick={inspecting ? onStopInspect : onStartInspect}
         className="flex items-center gap-1.5 rounded-md bg-raised px-2.5 py-1.5 text-xs font-medium text-muted transition-colors enabled:hover:bg-accent enabled:hover:text-primary disabled:cursor-not-allowed disabled:opacity-50"
       >
-        <Crosshair className="h-4 w-4" />
-        Inspect
+        {inspecting ? <X className="h-4 w-4" /> : <Crosshair className="h-4 w-4" />}
+        {inspecting ? 'Cancel' : 'Inspect'}
       </button>
     </header>
   )

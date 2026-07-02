@@ -4,12 +4,13 @@ Update this file after every meaningful implementation change.
 
 ## Current Phase
 
-- Background broker complete — content events relayed to the panel, panel commands
-  routed to the active tab.
+- Full inspection loop wired — Inspect button / `Ctrl+Shift+A` → selection → extraction →
+  capture summary in the panel. Everything except the AI analysis itself.
 
 ## Current Goal
 
-- Sidepanel wiring — enable the Inspect button + live status chip (Next Up #1).
+- Background Claude call — read key from storage, send payload, parse structured
+  response (Next Up #1).
 
 ## Completed
 
@@ -86,15 +87,28 @@ Update this file after every meaningful implementation change.
     silently. Broadcasts to a closed panel are safely ignored.
   - `src/lib/types.ts`: added `PanelCommand` + `ToPanelMessage`.
 
+- **Sidepanel wiring** — the inspection loop is now user-drivable end to end.
+  - `src/sidepanel/useInspection.ts` — all panel messaging in one hook
+    (components stay presentational): listens for relayed content events,
+    exposes `startInspect` / `stopInspect` commands, tracks
+    `status / capture / error`.
+  - Header Inspect button live: Inspect ↔ Cancel toggle, status chip follows
+    `INSPECT_STARTED` / `INSPECT_CANCELLED`; `RELAY_ERROR` renders as an error
+    banner (e.g. on chrome:// pages).
+  - `src/sidepanel/components/CaptureSummary.tsx` — interim card after a
+    capture: target descriptor + tween/timeline/ScrollTrigger/CSS counts +
+    GSAP version/SplitText/clip-path flags. The analysis sections replace the
+    panel body in the result-rendering unit; this card stays as the capture
+    context above them.
+
 ## In Progress
 
 - None.
 
 ## Next Up
 
-1. Sidepanel wiring — enable the Inspect button + live status chip.
-2. Background Claude call — read key from storage, send payload, parse structured response.
-3. Result rendering — concept, explanation, code, parameters in the panel.
+1. Background Claude call — read key from storage, send payload, parse structured response.
+2. Result rendering — concept, explanation, code, parameters in the panel.
 
 ## Open Questions
 
