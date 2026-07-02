@@ -34,4 +34,7 @@ export default defineManifest({
     },
   ],
   permissions: ['sidePanel', 'storage'],
+  // The background worker calls the Claude API directly (single-user V1;
+  // architecture.md → invariant 3/4).
+  host_permissions: ['https://api.anthropic.com/*'],
 })

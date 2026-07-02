@@ -120,8 +120,33 @@ export type FromContentMessage =
 /** Commands the side panel sends to the background worker. */
 export type PanelCommand = { type: 'PANEL_START_INSPECT' } | { type: 'PANEL_STOP_INSPECT' }
 
+// ---------------------------------------------------------------------------
+// AI analysis — what Claude returns for a capture.
+// ---------------------------------------------------------------------------
+
+export interface AnalysisParameter {
+  name: string
+  value: string
+  description: string
+}
+
+export interface AnalysisResult {
+  /** The animation concept's name, e.g. "Staggered SplitText reveal". */
+  concept: string
+  /** Plain-English explanation of the technique. */
+  explanation: string
+  /** Ready-to-use GSAP code. */
+  gsapCode: string
+  parameters: AnalysisParameter[]
+}
+
 /**
  * Messages the background worker broadcasts to the side panel. Content events
  * are relayed as-is; broker-level failures surface as RELAY_ERROR.
  */
-export type ToPanelMessage = FromContentMessage | { type: 'RELAY_ERROR'; reason: string }
+export type ToPanelMessage =
+  | FromContentMessage
+  | { type: 'RELAY_ERROR'; reason: string }
+  | { type: 'ANALYSIS_STARTED' }
+  | { type: 'ANALYSIS_RESULT'; result: AnalysisResult }
+  | { type: 'ANALYSIS_ERROR'; reason: string; missingKey: boolean }

@@ -4,13 +4,13 @@ Update this file after every meaningful implementation change.
 
 ## Current Phase
 
-- Full inspection loop wired — Inspect button / `Ctrl+Shift+A` → selection → extraction →
-  capture summary in the panel. Everything except the AI analysis itself.
+- Claude analysis wired in the background — captures auto-analyze; results/errors
+  broadcast to the panel. Panel-side rendering + API key input remain.
 
 ## Current Goal
 
-- Background Claude call — read key from storage, send payload, parse structured
-  response (Next Up #1).
+- Result rendering — concept, explanation, code, parameters in the panel, plus the
+  API key input (Next Up #1).
 
 ## Completed
 
@@ -101,14 +101,27 @@ Update this file after every meaningful implementation change.
     panel body in the result-rendering unit; this card stays as the capture
     context above them.
 
+- **Background Claude call** — captures now auto-analyze (core user flow).
+  - `@anthropic-ai/sdk` in the service worker (`dangerouslyAllowBrowser` — MV3
+    workers count as browser env), `host_permissions` for `api.anthropic.com`.
+  - `src/lib/prompt.ts` — system + user prompt in one place; asks for strict
+    JSON `{concept, explanation, gsapCode, parameters[]}`.
+  - `src/lib/storage.ts` — `getApiKey`/`setApiKey` on `chrome.storage.local`
+    (key never logged / never in page context, invariant 4).
+  - `src/background/claude.ts` — the ONLY Claude call site (invariant 3):
+    `claude-sonnet-4-6`, max_tokens 3000, defensive parsing (fence-strip,
+    brace-extract, shape validation), typed SDK errors mapped to safe
+    panel-facing messages (`missingKey` flag for auth problems).
+  - Broker broadcasts `ANALYSIS_STARTED` / `ANALYSIS_RESULT` / `ANALYSIS_ERROR`.
+
 ## In Progress
 
 - None.
 
 ## Next Up
 
-1. Background Claude call — read key from storage, send payload, parse structured response.
-2. Result rendering — concept, explanation, code, parameters in the panel.
+1. Result rendering — concept, explanation, code, parameters in the panel; API key
+   input (panel shows it when analysis fails with `missingKey`).
 
 ## Open Questions
 
