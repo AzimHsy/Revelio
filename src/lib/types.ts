@@ -148,5 +148,6 @@ export type ToPanelMessage =
   | FromContentMessage
   | { type: 'RELAY_ERROR'; reason: string }
   | { type: 'ANALYSIS_STARTED' }
+  | { type: 'ANALYSIS_PROGRESS'; partial: AnalysisResult }
   | { type: 'ANALYSIS_RESULT'; result: AnalysisResult }
   | { type: 'ANALYSIS_ERROR'; reason: string; missingKey: boolean }

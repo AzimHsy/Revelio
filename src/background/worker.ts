@@ -47,7 +47,9 @@ async function analyze(
 ): Promise<void> {
   broadcastToPanel({ type: 'ANALYSIS_STARTED' })
   try {
-    const result = await analyzeCapture(target, payload)
+    const result = await analyzeCapture(target, payload, (partial) => {
+      broadcastToPanel({ type: 'ANALYSIS_PROGRESS', partial })
+    })
     broadcastToPanel({ type: 'ANALYSIS_RESULT', result })
   } catch (error) {
     broadcastToPanel({ type: 'ANALYSIS_ERROR', ...describeAnalysisError(error) })

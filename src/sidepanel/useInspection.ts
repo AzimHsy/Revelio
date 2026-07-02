@@ -69,7 +69,12 @@ export function useInspection(): InspectionState {
           break
         case 'ANALYSIS_STARTED':
           setStatus('analyzing')
+          setResult(null)
           setAnalysisError(null)
+          break
+        case 'ANALYSIS_PROGRESS':
+          // Live partial parse — render the answer as it streams in.
+          setResult(msg.partial)
           break
         case 'ANALYSIS_RESULT':
           setStatus('idle')

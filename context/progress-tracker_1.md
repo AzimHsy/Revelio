@@ -4,9 +4,9 @@ Update this file after every meaningful implementation change.
 
 ## Current Phase
 
-- **V1 pipeline complete** — inspect/capture → MAIN-world extraction → Claude analysis →
-  concept/explanation/code/parameters rendered in the panel, with API key onboarding.
-  All six build units done; `npm run build` green.
+- **V1 pipeline complete + streaming** — inspect/capture → MAIN-world extraction → Claude
+  analysis (streamed) → concept/explanation/code/parameters render progressively in the
+  panel, with API key onboarding. Verified live on gsap.com. `npm run build` green.
 
 ## Current Goal
 
@@ -126,6 +126,21 @@ Update this file after every meaningful implementation change.
     `src/lib/storage.ts`.
   - `useInspection` tracks `result` / `analysisError`; status chip shows
     `Analyzing…` with a spinner line under the capture summary.
+
+- **Streaming analysis** — the answer now renders progressively instead of after a
+  15-30s blank wait (Azim's call when the non-streaming version felt too slow).
+  - Output format changed from JSON to delimiter sections
+    (`<<<CONCEPT>>>`/`EXPLANATION`/`CODE`/`PARAMETERS`, params as
+    `name | value | description` lines) so it parses incrementally — `src/lib/prompt.ts`.
+  - `src/lib/analysis.ts` — `parseAnalysisText` (partial-tolerant, strips a
+    mid-stream trailing marker, defends against stray code fences) + `isComplete`.
+    Replaces the old JSON `parseAnalysis` in `claude.ts`. Verified against
+    growing stream prefixes (sections fill in order, no marker leak).
+  - `src/background/claude.ts` — `client.messages.stream()` + `.finalMessage()`;
+    `onProgress` callback throttled to 120ms pushes partial parses.
+  - Broker relays `ANALYSIS_PROGRESS`; `useInspection` renders each partial live;
+    `ResultView` skips empty sections + shows a blinking caret on the section
+    still filling (`streaming` prop).
 
 ## In Progress
 

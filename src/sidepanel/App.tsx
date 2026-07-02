@@ -25,13 +25,13 @@ export default function App() {
         {capture ? (
           <>
             <CaptureSummary capture={capture} />
-            {status === 'analyzing' && (
+            {status === 'analyzing' && !result && (
               <p className="flex items-center gap-2 px-3 pb-3 text-xs text-muted">
                 <LoaderCircle className="h-4 w-4 animate-spin text-accent" />
                 Asking Claude to identify the technique…
               </p>
             )}
-            {result && <ResultView result={result} />}
+            {result && <ResultView result={result} streaming={status === 'analyzing'} />}
           </>
         ) : (
           <IdleState />

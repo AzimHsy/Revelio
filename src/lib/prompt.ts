@@ -19,15 +19,18 @@ Rules for the GSAP code:
 - Prefer the values observed in the runtime data (durations, eases, staggers, start/end positions).
 - If no GSAP is present but CSS animations are, still produce the GSAP equivalent of the technique.
 
-Respond with ONLY a JSON object — no markdown fences, no commentary — in exactly this shape:
-{
-  "concept": "string — the technique's name",
-  "explanation": "string — plain-English explanation, 2-5 sentences",
-  "gsapCode": "string — the GSAP code",
-  "parameters": [
-    { "name": "string", "value": "string", "description": "string — what this parameter controls" }
-  ]
-}`
+Respond in EXACTLY this plain-text format. Put each literal section marker on its own line. Do NOT \
+use JSON, markdown headings, or code fences. Emit the sections strictly in this order:
+
+<<<CONCEPT>>>
+the technique's name, on one line
+<<<EXPLANATION>>>
+plain-English explanation, 2-5 sentences
+<<<CODE>>>
+the GSAP code, raw (no triple-backtick fences)
+<<<PARAMETERS>>>
+one parameter per line, formatted as: name | value | description
+(repeat the line for each key parameter — the description explains what it controls)`
 
 export function buildUserPrompt(target: SelectedTarget, payload: RuntimePayload): string {
   const subject =

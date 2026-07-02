@@ -1,7 +1,12 @@
 import Anthropic from '@anthropic-ai/sdk'
+import { isComplete, parseAnalysisText } from '../lib/analysis'
 import { buildUserPrompt, SYSTEM_PROMPT } from '../lib/prompt'
 import { getApiKey } from '../lib/storage'
-import type { AnalysisParameter, AnalysisResult, RuntimePayload, SelectedTarget } from '../lib/types'
+import type { AnalysisResult, RuntimePayload, SelectedTarget } from '../lib/types'
+
+// How often (ms) to push a partial parse to the panel while streaming — often
+// enough to feel live, throttled so we don't spam the message channel.
+const PROGRESS_INTERVAL_MS = 120
 
 // The Claude API call — this module is the only place it happens
 // (architecture.md → invariant 3). The key comes from chrome.storage.local
@@ -20,6 +25,7 @@ export class MissingKeyError extends Error {
 export async function analyzeCapture(
   target: SelectedTarget,
   payload: RuntimePayload,
+  onProgress?: (partial: AnalysisResult) => void,
 ): Promise<AnalysisResult> {
   const apiKey = await getApiKey()
   if (!apiKey) throw new MissingKeyError()
@@ -28,19 +34,35 @@ export async function analyzeCapture(
   // manifest grants host permission for api.anthropic.com.
   const client = new Anthropic({ apiKey, dangerouslyAllowBrowser: true })
 
-  const response = await client.messages.create({
+  // Stream so the panel can render the answer as it generates instead of
+  // waiting on the full response (claude-api guidance for large outputs).
+  const stream = client.messages.stream({
     model: MODEL,
     max_tokens: MAX_TOKENS,
     system: SYSTEM_PROMPT,
     messages: [{ role: 'user', content: buildUserPrompt(target, payload) }],
   })
 
-  const text = response.content
+  let text = ''
+  let lastEmit = 0
+  stream.on('text', (delta) => {
+    text += delta
+    const now = Date.now()
+    if (onProgress && now - lastEmit >= PROGRESS_INTERVAL_MS) {
+      lastEmit = now
+      onProgress(parseAnalysisText(text))
+    }
+  })
+
+  const final = await stream.finalMessage()
+  const full = final.content
     .filter((block) => block.type === 'text')
     .map((block) => block.text)
     .join('')
 
-  return parseAnalysis(text)
+  const result = parseAnalysisText(full)
+  if (!isComplete(result)) throw new Error('Claude returned an incomplete response.')
+  return result
 }
 
 /** Human-readable message for the panel; never includes the API key. */
@@ -59,51 +81,4 @@ export function describeAnalysisError(error: unknown): { reason: string; missing
     reason: error instanceof Error ? error.message : 'Analysis failed unexpectedly.',
     missingKey: false,
   }
-}
-
-// Parse defensively (code-standards.md): strip code fences, tolerate stray
-// prose around the JSON, validate the shape before trusting it.
-export function parseAnalysis(raw: string): AnalysisResult {
-  let text = raw.trim()
-  const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/)
-  if (fenced?.[1]) text = fenced[1].trim()
-
-  const start = text.indexOf('{')
-  const end = text.lastIndexOf('}')
-  if (start === -1 || end <= start) throw new Error('Claude returned no JSON object.')
-
-  let parsed: unknown
-  try {
-    parsed = JSON.parse(text.slice(start, end + 1))
-  } catch {
-    throw new Error('Claude returned malformed JSON.')
-  }
-
-  if (typeof parsed !== 'object' || parsed === null) {
-    throw new Error('Claude returned an unexpected response shape.')
-  }
-  const obj = parsed as Record<string, unknown>
-  const concept = typeof obj['concept'] === 'string' ? obj['concept'] : null
-  const explanation = typeof obj['explanation'] === 'string' ? obj['explanation'] : null
-  const gsapCode = typeof obj['gsapCode'] === 'string' ? obj['gsapCode'] : null
-  if (!concept || !explanation || !gsapCode) {
-    throw new Error('Claude response is missing required fields.')
-  }
-
-  const parameters: AnalysisParameter[] = Array.isArray(obj['parameters'])
-    ? obj['parameters'].flatMap((p: unknown) => {
-        if (typeof p !== 'object' || p === null) return []
-        const param = p as Record<string, unknown>
-        if (typeof param['name'] !== 'string' || typeof param['description'] !== 'string') return []
-        return [
-          {
-            name: param['name'],
-            value: typeof param['value'] === 'string' ? param['value'] : String(param['value'] ?? ''),
-            description: param['description'],
-          },
-        ]
-      })
-    : []
-
-  return { concept, explanation, gsapCode, parameters }
 }
