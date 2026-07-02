@@ -42,6 +42,9 @@ chrome.runtime.onMessage.addListener((raw: unknown, sender) => {
     case 'PANEL_STOP_INSPECT':
       void sendToActiveTab({ type: 'STOP_INSPECT' })
       break
+    case 'PANEL_INSPECT_KEY':
+      void sendToActiveTab({ type: 'INSPECT_KEY', key: command.key })
+      break
   }
 })
 

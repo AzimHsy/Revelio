@@ -77,36 +77,50 @@ function onClick(event: MouseEvent): void {
   selectCurrent()
 }
 
-function onKeyDown(event: KeyboardEvent): void {
-  switch (event.key) {
+// Runs a traversal/selection key. Shared by the page's own keydown listener and
+// by keys relayed from the panel (INSPECT_KEY) — the panel holds keyboard focus
+// while the toolbar-opened side panel is active, so the page never sees the
+// keydown itself. Returns true if the key was handled. `[`/`]` (and PageUp/Down)
+// pierce the z-stack to reach elements under a covering container.
+export function handleKey(key: string): boolean {
+  if (!active) return false
+  switch (key) {
     case 'Escape':
-      stop(event, () => stopInspect({ cancelled: true }))
-      break
+      stopInspect({ cancelled: true })
+      return true
     case 'Enter':
-      stop(event, selectCurrent)
-      break
+      selectCurrent()
+      return true
     case 'ArrowUp':
-      stop(event, () => traverse((el) => el.parentElement))
-      break
+      traverse((el) => el.parentElement)
+      return true
     case 'ArrowDown':
-      stop(event, () => traverse((el) => el.firstElementChild))
-      break
+      traverse((el) => el.firstElementChild)
+      return true
     case 'ArrowLeft':
-      stop(event, () => traverse((el) => el.previousElementSibling))
-      break
+      traverse((el) => el.previousElementSibling)
+      return true
     case 'ArrowRight':
-      stop(event, () => traverse((el) => el.nextElementSibling))
-      break
-    // Pierce the z-stack: reach elements stacked under the cursor (past a
-    // covering container). `]`/PageDown go deeper, `[`/PageUp back toward the top.
+      traverse((el) => el.nextElementSibling)
+      return true
     case ']':
     case 'PageDown':
-      stop(event, () => cycleStack(1))
-      break
+      cycleStack(1)
+      return true
     case '[':
     case 'PageUp':
-      stop(event, () => cycleStack(-1))
-      break
+      cycleStack(-1)
+      return true
+    default:
+      return false
+  }
+}
+
+function onKeyDown(event: KeyboardEvent): void {
+  // Consume handled keys so arrows don't scroll the page / Enter doesn't submit.
+  if (handleKey(event.key)) {
+    event.preventDefault()
+    event.stopPropagation()
   }
 }
 
@@ -117,14 +131,6 @@ function cycleStack(dir: 1 | -1): void {
   if (stack.length === 0) return
   stackIndex = Math.max(0, Math.min(stack.length - 1, stackIndex + dir))
   setCurrent(stack[stackIndex])
-}
-
-// Consume the event (so arrows don't scroll the page / Enter doesn't submit)
-// then run the action.
-function stop(event: Event, action: () => void): void {
-  event.preventDefault()
-  event.stopPropagation()
-  action()
 }
 
 function traverse(step: (el: Element) => Element | null): void {

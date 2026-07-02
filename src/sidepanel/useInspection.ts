@@ -128,6 +128,23 @@ export function useInspection(): InspectionState {
     return () => chrome.runtime.onMessage.removeListener(onMessage)
   }, [])
 
+  // While inspecting, the panel (not the page) holds keyboard focus, so traversal
+  // keys land here — relay them to the content script. ArrowUp/Down/Left/Right walk
+  // the DOM, `[`/`]` pierce the z-stack, Enter selects, Escape cancels.
+  useEffect(() => {
+    if (status !== 'inspecting') return
+    const KEYS = new Set([
+      'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', '[', ']', 'PageUp', 'PageDown', 'Enter', 'Escape',
+    ])
+    function onKey(event: KeyboardEvent): void {
+      if (!KEYS.has(event.key)) return
+      event.preventDefault()
+      sendCommand({ type: 'PANEL_INSPECT_KEY', key: event.key })
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [status])
+
   return {
     status,
     history,

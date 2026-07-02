@@ -1,6 +1,6 @@
 import type { FromContentMessage, SelectedTarget, ToContentMessage } from '../lib/types'
 import { requestExtraction } from './bridge'
-import { startInspect, stopInspect } from './selection'
+import { handleKey, startInspect, stopInspect } from './selection'
 
 // Content script entry (isolated world). Handles selection + the capture
 // shortcut, asks the MAIN-world extractor for runtime data, and relays
@@ -33,6 +33,10 @@ chrome.runtime.onMessage.addListener((raw: unknown) => {
       break
     case 'STOP_INSPECT':
       stopInspect({ cancelled: true })
+      break
+    case 'INSPECT_KEY':
+      // Traversal key relayed from the panel (which has keyboard focus).
+      handleKey(msg.key)
       break
   }
 })

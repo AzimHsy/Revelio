@@ -124,7 +124,12 @@ export interface ExtractResponse {
 // ---------------------------------------------------------------------------
 
 /** Messages sent TO the content script (from the background worker). */
-export type ToContentMessage = { type: 'START_INSPECT' } | { type: 'STOP_INSPECT' }
+export type ToContentMessage =
+  | { type: 'START_INSPECT' }
+  | { type: 'STOP_INSPECT' }
+  // A traversal key relayed from the panel (which holds keyboard focus while the
+  // toolbar-opened panel is active, so the page's own keydown never fires).
+  | { type: 'INSPECT_KEY'; key: string }
 
 /** Messages the content script emits toward the background worker. */
 export type FromContentMessage =
@@ -144,7 +149,10 @@ export type FromContentMessage =
     }
 
 /** Commands the side panel sends to the background worker. */
-export type PanelCommand = { type: 'PANEL_START_INSPECT' } | { type: 'PANEL_STOP_INSPECT' }
+export type PanelCommand =
+  | { type: 'PANEL_START_INSPECT' }
+  | { type: 'PANEL_STOP_INSPECT' }
+  | { type: 'PANEL_INSPECT_KEY'; key: string }
 
 // ---------------------------------------------------------------------------
 // AI analysis — what Claude returns for a capture.

@@ -248,6 +248,12 @@ Update this file after every meaningful implementation change.
   - `src/content/overlay.ts` — the highlight box now carries a **DevTools-style label**
     (tag`#id`.class · W×H) so you see exactly what's targeted as you traverse.
   - `src/sidepanel/components/IdleState.tsx` — documents the new keys (added a `Kbd` helper).
+  - **Focus fix** — the toolbar-opened side panel keeps keyboard focus, so the page's own
+    keydown never fired ("keyboard does nothing"). Now the panel relays traversal keys:
+    `useInspection` listens while `status === 'inspecting'` → `PANEL_INSPECT_KEY` →
+    `worker` → `INSPECT_KEY` → content `handleKey(key)` (shared by the page listener too, so
+    it also works if the page happens to hold focus). Added `INSPECT_KEY`/`PANEL_INSPECT_KEY`
+    to the message contract.
   - `npm run build` green.
 
 - **Faithful-clone preview (Phase B)** — the preview ran on 6 generic gradient boxes, so it
