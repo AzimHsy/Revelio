@@ -107,7 +107,7 @@ export interface ExtractResponse {
 // chrome.runtime messaging: content → background → sidepanel.
 // ---------------------------------------------------------------------------
 
-/** Messages sent TO the content script (from background / side panel). */
+/** Messages sent TO the content script (from the background worker). */
 export type ToContentMessage = { type: 'START_INSPECT' } | { type: 'STOP_INSPECT' }
 
 /** Messages the content script emits toward the background worker. */
@@ -116,3 +116,12 @@ export type FromContentMessage =
   | { type: 'INSPECT_CANCELLED' }
   | { type: 'ELEMENT_SELECTED'; target: SelectedTarget; payload: RuntimePayload | null }
   | { type: 'SECTION_CAPTURED'; target: SelectedTarget; payload: RuntimePayload | null }
+
+/** Commands the side panel sends to the background worker. */
+export type PanelCommand = { type: 'PANEL_START_INSPECT' } | { type: 'PANEL_STOP_INSPECT' }
+
+/**
+ * Messages the background worker broadcasts to the side panel. Content events
+ * are relayed as-is; broker-level failures surface as RELAY_ERROR.
+ */
+export type ToPanelMessage = FromContentMessage | { type: 'RELAY_ERROR'; reason: string }

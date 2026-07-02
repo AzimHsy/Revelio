@@ -4,12 +4,12 @@ Update this file after every meaningful implementation change.
 
 ## Current Phase
 
-- Injected extractor complete — MAIN-world GSAP/ScrollTrigger/CSS extraction, serialized
-  JSON relayed through the content script.
+- Background broker complete — content events relayed to the panel, panel commands
+  routed to the active tab.
 
 ## Current Goal
 
-- Background broker — relay `content → background → sidepanel` (Next Up #1).
+- Sidepanel wiring — enable the Inspect button + live status chip (Next Up #1).
 
 ## Completed
 
@@ -77,16 +77,24 @@ Update this file after every meaningful implementation change.
     shapes), bridge request/response types; `ELEMENT_SELECTED` / `SECTION_CAPTURED`
     now carry `payload: RuntimePayload | null`.
 
+- **Background broker** — `src/background/index.ts` is now the messaging hub.
+  - Content messages (recognized by `sender.tab`) are relayed as-is to the side
+    panel; panel commands (`PANEL_START_INSPECT` / `PANEL_STOP_INSPECT`) are routed
+    to the active tab as `START_INSPECT` / `STOP_INSPECT`.
+  - Pages without the content script (chrome://, Web Store, PDFs) surface as a
+    `RELAY_ERROR` broadcast so the panel can tell the user instead of failing
+    silently. Broadcasts to a closed panel are safely ignored.
+  - `src/lib/types.ts`: added `PanelCommand` + `ToPanelMessage`.
+
 ## In Progress
 
 - None.
 
 ## Next Up
 
-1. Background broker — relay `content → background → sidepanel`.
-2. Sidepanel wiring — enable the Inspect button + live status chip.
-3. Background Claude call — read key from storage, send payload, parse structured response.
-4. Result rendering — concept, explanation, code, parameters in the panel.
+1. Sidepanel wiring — enable the Inspect button + live status chip.
+2. Background Claude call — read key from storage, send payload, parse structured response.
+3. Result rendering — concept, explanation, code, parameters in the panel.
 
 ## Open Questions
 
