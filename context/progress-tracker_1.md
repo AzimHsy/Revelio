@@ -170,8 +170,12 @@ Update this file after every meaningful implementation change.
   - `useInspection` — separates the in-flight `pending` capture from persisted
     `history` + `viewIndex`; selecting a new element no longer wipes prior results;
     loads history from storage on mount (survives panel close); `viewOlder`/`viewNewer`.
-  - `CaptureSummary` now takes `target` + `stats` (works for live + stored);
-    new `HistoryNav` (`Recent · n / N`, ‹ older / newer ›), shown when >1 entry.
+  - `CaptureSummary` now takes `target` + `stats` (works for live + stored).
+  - **History UI = concept-labeled list** (`src/sidepanel/components/HistoryList.tsx`):
+    each recent analysis shown by its concept name, click to view, active row dotted
+    in accent, plus a **Clear** button (`clearHistory` → `chrome.storage.local.remove`).
+    Replaced the earlier one-at-a-time `‹ / ›` `HistoryNav` (deleted). Hook exposes
+    `selectEntry(i)` + `clearHistory` instead of `viewOlder`/`viewNewer`.
 
 ## In Progress
 
@@ -182,8 +186,7 @@ Update this file after every meaningful implementation change.
 1. Manual end-to-end verification of the history nav on a real GSAP site — inspect
    2-3 different elements, confirm each is saved and ‹/› navigates between them, and
    that they survive closing + reopening the panel.
-2. Possible polish (not yet scoped): clear-history control; show capture timestamp;
-   label each history entry by concept name in a list instead of one-at-a-time nav.
+2. Possible polish (not yet scoped): show capture timestamp on each history row.
 
 ## Open Questions
 

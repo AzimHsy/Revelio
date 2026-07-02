@@ -33,3 +33,7 @@ export async function pushHistory(entry: HistoryEntry): Promise<HistoryEntry[]> 
   await chrome.storage.local.set({ [HISTORY_KEY]: next })
   return next
 }
+
+export async function clearHistory(): Promise<void> {
+  await chrome.storage.local.remove(HISTORY_KEY)
+}

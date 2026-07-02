@@ -3,7 +3,7 @@ import { toCaptureStats } from '../lib/history'
 import ApiKeyForm from './components/ApiKeyForm'
 import CaptureSummary from './components/CaptureSummary'
 import Header from './components/Header'
-import HistoryNav from './components/HistoryNav'
+import HistoryList from './components/HistoryList'
 import IdleState from './components/IdleState'
 import ResultView from './components/ResultView'
 import { useInspection } from './useInspection'
@@ -21,8 +21,8 @@ export default function App() {
     analysisError,
     startInspect,
     stopInspect,
-    viewOlder,
-    viewNewer,
+    selectEntry,
+    clearHistory,
   } = useInspection()
 
   const entry = history[viewIndex] ?? null
@@ -54,14 +54,12 @@ export default function App() {
         ) : entry ? (
           // Viewing saved history.
           <>
-            {history.length > 1 && (
-              <HistoryNav
-                index={viewIndex}
-                total={history.length}
-                onOlder={viewOlder}
-                onNewer={viewNewer}
-              />
-            )}
+            <HistoryList
+              entries={history}
+              activeIndex={viewIndex}
+              onSelect={selectEntry}
+              onClear={clearHistory}
+            />
             <CaptureSummary target={entry.target} stats={entry.stats} />
             <ResultView result={entry.result} />
           </>

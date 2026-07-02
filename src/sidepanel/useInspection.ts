@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { getHistory, MAX_HISTORY } from '../lib/history'
+import { clearHistory as clearStoredHistory, getHistory, MAX_HISTORY } from '../lib/history'
 import type {
   AnalysisResult,
   HistoryEntry,
@@ -36,8 +36,8 @@ export interface InspectionState {
   analysisError: AnalysisFailure | null
   startInspect: () => void
   stopInspect: () => void
-  viewOlder: () => void
-  viewNewer: () => void
+  selectEntry: (index: number) => void
+  clearHistory: () => void
 }
 
 function sendCommand(command: PanelCommand): void {
@@ -124,7 +124,12 @@ export function useInspection(): InspectionState {
     analysisError,
     startInspect: () => sendCommand({ type: 'PANEL_START_INSPECT' }),
     stopInspect: () => sendCommand({ type: 'PANEL_STOP_INSPECT' }),
-    viewOlder: () => setViewIndex((i) => Math.min(i + 1, history.length - 1)),
-    viewNewer: () => setViewIndex((i) => Math.max(i - 1, 0)),
+    selectEntry: (index: number) => setViewIndex(index),
+    clearHistory: () => {
+      void clearStoredHistory().then(() => {
+        setHistory([])
+        setViewIndex(0)
+      })
+    },
   }
 }
