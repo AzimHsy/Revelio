@@ -33,7 +33,9 @@ export default defineManifest({
       world: 'MAIN',
     },
   ],
-  permissions: ['sidePanel', 'storage'],
+  // activeTab is granted when the panel is opened via the toolbar action and
+  // covers chrome.tabs.captureVisibleTab for the element-thumbnail screenshot.
+  permissions: ['sidePanel', 'storage', 'activeTab'],
   // The background worker calls the Claude API directly (single-user V1;
   // architecture.md → invariant 3/4).
   host_permissions: ['https://api.anthropic.com/*'],

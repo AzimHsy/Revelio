@@ -1,4 +1,5 @@
 import { analyzeCapture, describeAnalysisError } from './claude'
+import { captureThumbnail } from './screenshot'
 import { pushHistory, toCaptureStats } from '../lib/history'
 import type {
   FromContentMessage,
@@ -27,7 +28,7 @@ chrome.runtime.onMessage.addListener((raw: unknown, sender) => {
     const msg = raw as FromContentMessage
     broadcastToPanel(msg)
     if ((msg.type === 'ELEMENT_SELECTED' || msg.type === 'SECTION_CAPTURED') && msg.payload) {
-      void analyze(msg.target, msg.payload)
+      void analyze(msg.target, msg.payload, sender.tab?.windowId)
     }
     return
   }
@@ -52,8 +53,19 @@ function broadcastToPanel(msg: ToPanelMessage): void {
 // (project-overview.md → Core User Flow). A successful analysis is persisted to
 // the recent-history store here (so it survives the panel closing) and the
 // entry is broadcast to the panel.
-async function analyze(target: SelectedTarget, payload: RuntimePayload): Promise<void> {
+async function analyze(
+  target: SelectedTarget,
+  payload: RuntimePayload,
+  windowId?: number,
+): Promise<void> {
   broadcastToPanel({ type: 'ANALYSIS_STARTED' })
+  // Screenshot runs in parallel with the Claude call — it's optional, so it
+  // never blocks or fails the analysis. Broadcast it as soon as it's ready for
+  // the live view, and fold the same result into the stored entry.
+  const thumbnailPromise = captureThumbnail(target, windowId)
+  void thumbnailPromise.then((thumbnail) => {
+    if (thumbnail) broadcastToPanel({ type: 'THUMBNAIL_READY', thumbnail })
+  })
   try {
     const result = await analyzeCapture(target, payload, (partial) => {
       broadcastToPanel({ type: 'ANALYSIS_PROGRESS', partial })
@@ -63,6 +75,7 @@ async function analyze(target: SelectedTarget, payload: RuntimePayload): Promise
       target,
       stats: toCaptureStats(payload),
       result,
+      thumbnail: (await thumbnailPromise) ?? undefined,
       at: Date.now(),
     }
     await pushHistory(entry)

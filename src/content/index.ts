@@ -58,6 +58,7 @@ function captureViewport(): SelectedTarget {
     id: null,
     classes: [],
     rect: { x: 0, y: 0, width: window.innerWidth, height: window.innerHeight },
+    dpr: window.devicePixelRatio,
     url: location.href,
   }
 }

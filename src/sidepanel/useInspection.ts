@@ -25,6 +25,8 @@ export interface PendingCapture {
   target: SelectedTarget
   payload: RuntimePayload | null
   result: AnalysisResult | null
+  /** Cropped element screenshot — arrives via THUMBNAIL_READY, may be absent. */
+  thumbnail?: string
 }
 
 export interface InspectionState {
@@ -92,6 +94,9 @@ export function useInspection(): InspectionState {
           break
         case 'ANALYSIS_PROGRESS':
           setPending((prev) => (prev ? { ...prev, result: msg.partial } : prev))
+          break
+        case 'THUMBNAIL_READY':
+          setPending((prev) => (prev ? { ...prev, thumbnail: msg.thumbnail } : prev))
           break
         case 'ANALYSIS_RESULT':
           // Fold the finished capture into history and show it (newest).

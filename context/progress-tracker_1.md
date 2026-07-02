@@ -177,16 +177,45 @@ Update this file after every meaningful implementation change.
     Replaced the earlier one-at-a-time `‹ / ›` `HistoryNav` (deleted). Hook exposes
     `selectEntry(i)` + `clearHistory` instead of `viewOlder`/`viewNewer`.
 
+- **Preview Unit 1 — element screenshot thumbnail** — the panel was text-only; you
+  couldn't see *which* element you inspected. Now each capture carries a cropped
+  screenshot of the element, shown in the capture summary and as a 28px thumbnail on
+  each history row.
+  - `src/lib/types.ts` — `SelectedTarget` gains `dpr` (devicePixelRatio at capture —
+    `captureVisibleTab` renders at that scale, `rect` is CSS px); `HistoryEntry` gains
+    optional `thumbnail?: string` (webp data URL); new `THUMBNAIL_READY` panel message.
+  - `src/content/selection.ts` + `src/content/index.ts` — set `dpr:
+    window.devicePixelRatio` where the target is built (element + viewport captures).
+  - `src/manifest.config.ts` — added `activeTab` permission (granted on toolbar-action
+    open, covers `captureVisibleTab`).
+  - `src/background/screenshot.ts` (new) — `captureThumbnail(target, windowId)`:
+    `captureVisibleTab` → `createImageBitmap` → crop to `rect × dpr` (clamped to image
+    bounds) → downscale to ≤320px → `OffscreenCanvas.convertToBlob` webp q0.7 →
+    `FileReader` data URL. Fully failure-tolerant — any error returns `null`.
+  - `src/background/worker.ts` — `analyze()` kicks the screenshot off **in parallel**
+    with the Claude call (threading `sender.tab?.windowId`), broadcasts
+    `THUMBNAIL_READY` for the live view, and folds the awaited result into the stored
+    `HistoryEntry`. Never blocks/fails analysis.
+  - `useInspection` — `PendingCapture` gains `thumbnail`; handles `THUMBNAIL_READY`.
+    `CaptureSummary` renders an `object-contain` image above the label; `HistoryList`
+    shows a 28px `object-cover` thumbnail (falls back to the dot when absent).
+  - Old history entries without `thumbnail` still render (field optional). `npm run
+    build` green.
+
 ## In Progress
 
-- None.
+- **Preview Unit 2 — live animation preview** (next): sandboxed iframe runs Claude's
+  generated GSAP on a demo stage with a Replay button. Adds a `<<<PREVIEW>>>` prompt
+  section, `previewCode` on `AnalysisResult`, a manifest `sandbox` page bundling gsap,
+  and `PreviewStage.tsx`. See `.claude/plans/is-it-possible-if-warm-cloud.md`.
 
 ## Next Up
 
-1. Manual end-to-end verification of the history nav on a real GSAP site — inspect
-   2-3 different elements, confirm each is saved and ‹/› navigates between them, and
-   that they survive closing + reopening the panel.
-2. Possible polish (not yet scoped): show capture timestamp on each history row.
+1. Manual verification of Unit 1 on gsap.com — inspect an animated element, confirm the
+   thumbnail appears in the summary + on the new history row, and survives closing +
+   reopening the panel. **Reload the extension card after building.**
+2. Build Preview Unit 2 (live animation preview) per the plan file.
+3. Possible polish (not yet scoped): show capture timestamp on each history row.
 
 ## Open Questions
 

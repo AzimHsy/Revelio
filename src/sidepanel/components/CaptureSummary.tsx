@@ -7,9 +7,11 @@ import type { CaptureStats, SelectedTarget } from '../../lib/types'
 export default function CaptureSummary({
   target,
   stats,
+  thumbnail,
 }: {
   target: SelectedTarget
   stats: CaptureStats | null
+  thumbnail?: string
 }) {
   const label =
     target.kind === 'element'
@@ -19,6 +21,13 @@ export default function CaptureSummary({
 
   return (
     <section className="m-3 flex flex-col gap-3 rounded-lg border border-line bg-surface p-4">
+      {thumbnail && (
+        <img
+          src={thumbnail}
+          alt="Screenshot of the inspected element"
+          className="max-h-30 w-full rounded-md bg-raised object-contain"
+        />
+      )}
       <div className="flex items-center gap-2">
         <Icon className="h-4 w-4 shrink-0 text-accent" />
         <span className="truncate font-mono text-xs text-primary" title={label}>

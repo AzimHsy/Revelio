@@ -36,7 +36,11 @@ export default function App() {
         {pending ? (
           // Live capture being analyzed (or just errored) — not yet in history.
           <>
-            <CaptureSummary target={pending.target} stats={toCaptureStats(pending.payload)} />
+            <CaptureSummary
+              target={pending.target}
+              stats={toCaptureStats(pending.payload)}
+              thumbnail={pending.thumbnail}
+            />
             {analysisError && !analysisError.missingKey && (
               <ErrorBanner message={analysisError.reason} />
             )}
@@ -60,7 +64,7 @@ export default function App() {
               onSelect={selectEntry}
               onClear={clearHistory}
             />
-            <CaptureSummary target={entry.target} stats={entry.stats} />
+            <CaptureSummary target={entry.target} stats={entry.stats} thumbnail={entry.thumbnail} />
             <ResultView result={entry.result} />
           </>
         ) : (

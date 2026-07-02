@@ -70,6 +70,7 @@ export function describeElement(el: Element): SelectedTarget {
     id: el.id || null,
     classes: [...el.classList],
     rect: { x: rect.x, y: rect.y, width: rect.width, height: rect.height },
+    dpr: window.devicePixelRatio,
     url: location.href,
   }
 }

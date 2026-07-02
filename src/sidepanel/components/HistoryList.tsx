@@ -45,9 +45,17 @@ export default function HistoryList({
                   active ? 'bg-raised text-primary' : 'text-muted hover:bg-surface hover:text-primary'
                 }`}
               >
-                <span
-                  className={`h-1.5 w-1.5 shrink-0 rounded-full ${active ? 'bg-accent' : 'bg-line'}`}
-                />
+                {entry.thumbnail ? (
+                  <img
+                    src={entry.thumbnail}
+                    alt=""
+                    className="h-7 w-7 shrink-0 rounded object-cover"
+                  />
+                ) : (
+                  <span
+                    className={`h-1.5 w-1.5 shrink-0 rounded-full ${active ? 'bg-accent' : 'bg-line'}`}
+                  />
+                )}
                 <span className="truncate">{entry.result.concept || 'Untitled capture'}</span>
               </button>
             </li>

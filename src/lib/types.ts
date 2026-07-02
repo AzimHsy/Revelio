@@ -13,8 +13,10 @@ export interface SelectedTarget {
   tag: string | null
   id: string | null
   classes: string[]
-  /** Bounding rect in viewport coordinates. */
+  /** Bounding rect in viewport coordinates (CSS pixels). */
   rect: { x: number; y: number; width: number; height: number }
+  /** devicePixelRatio at capture time — captureVisibleTab renders at this scale. */
+  dpr: number
   /** Page URL at capture time. */
   url: string
 }
@@ -157,6 +159,8 @@ export interface HistoryEntry {
   target: SelectedTarget
   stats: CaptureStats | null
   result: AnalysisResult
+  /** Cropped screenshot of the inspected element (webp data URL). Optional. */
+  thumbnail?: string
   /** Capture time (epoch ms). */
   at: number
 }
@@ -170,5 +174,6 @@ export type ToPanelMessage =
   | { type: 'RELAY_ERROR'; reason: string }
   | { type: 'ANALYSIS_STARTED' }
   | { type: 'ANALYSIS_PROGRESS'; partial: AnalysisResult }
+  | { type: 'THUMBNAIL_READY'; thumbnail: string }
   | { type: 'ANALYSIS_RESULT'; entry: HistoryEntry }
   | { type: 'ANALYSIS_ERROR'; reason: string; missingKey: boolean }
