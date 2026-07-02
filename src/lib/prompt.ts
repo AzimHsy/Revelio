@@ -1,3 +1,4 @@
+import { digestForPrompt } from './digest'
 import type { RuntimePayload, SelectedTarget } from './types'
 
 // The Claude prompt lives in one place so it can be iterated without touching
@@ -38,9 +39,12 @@ export function buildUserPrompt(target: SelectedTarget, payload: RuntimePayload)
       ? `the element \`${target.selector ?? target.tag ?? 'unknown'}\``
       : 'the currently visible viewport section'
 
+  // Send a compact digest (representative sample + true counts), not the full
+  // dump — the full payload can be 100K+ tokens and adds no analytical value.
   return `Identify and recreate the animation running on ${subject} of ${target.url}.
 
-Runtime animation data extracted from the live page:
+Runtime animation data extracted from the live page. This is a representative sample; the \
+\`counts\` field gives the true totals behind the sample:
 
-${JSON.stringify(payload, null, 2)}`
+${JSON.stringify(digestForPrompt(payload))}`
 }

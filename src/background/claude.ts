@@ -14,6 +14,10 @@ const PROGRESS_INTERVAL_MS = 120
 
 const MODEL = 'claude-sonnet-4-6'
 const MAX_TOKENS = 3000
+// Safety rails so a slow/huge request can never run away (the payload digest
+// keeps input small; these bound the worst case regardless):
+const REQUEST_TIMEOUT_MS = 60_000 // hard cap per attempt
+const MAX_RETRIES = 1 // one retry, not the SDK default of 2 — bounds cost on failure
 
 export class MissingKeyError extends Error {
   constructor() {
@@ -32,7 +36,12 @@ export async function analyzeCapture(
 
   // MV3 service workers count as a browser environment for the SDK; the
   // manifest grants host permission for api.anthropic.com.
-  const client = new Anthropic({ apiKey, dangerouslyAllowBrowser: true })
+  const client = new Anthropic({
+    apiKey,
+    dangerouslyAllowBrowser: true,
+    timeout: REQUEST_TIMEOUT_MS,
+    maxRetries: MAX_RETRIES,
+  })
 
   // Stream so the panel can render the answer as it generates instead of
   // waiting on the full response (claude-api guidance for large outputs).

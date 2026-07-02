@@ -142,6 +142,21 @@ Update this file after every meaningful implementation change.
     `ResultView` skips empty sections + shows a blinking caret on the section
     still filling (`streaming` prop).
 
+- **Payload digest (cost/latency fix)** — a rich capture (25 tweens / 10 timelines ×
+  20 children / SplitText tween targeting 120 chars) was sending Claude ~100K+
+  input tokens; the old non-streaming call hit the SDK's 10-min timeout and retried
+  2× → one analysis took ~10 min and cost ~$1. Fix:
+  - `src/lib/digest.ts` — `digestForPrompt` sends a representative SAMPLE (8 tweens,
+    4 timelines × 5 children, 5 scroll triggers, 5 CSS anims, ≤6 targets/tween,
+    trimmed keyframes) plus the TRUE counts so the model still knows the real scale.
+    Measured **~15× smaller** (≈26K→≈1.7K tokens on a gsap.com-scale capture).
+    The UI still shows full counts from the raw payload — only the model input is trimmed.
+  - `src/lib/prompt.ts` — sends the digest, compact `JSON.stringify` (no pretty-print).
+  - `src/background/claude.ts` — client now sets `timeout: 60s` + `maxRetries: 1`
+    (was SDK default 2) so a bad call can't eat $1 again.
+  - **Lesson**: never send the full runtime dump to the model — sample + counts.
+    Timeouts/retries on a huge non-streamed payload multiply cost silently.
+
 ## In Progress
 
 - None.
