@@ -157,15 +157,33 @@ Update this file after every meaningful implementation change.
   - **Lesson**: never send the full runtime dump to the model — sample + counts.
     Timeouts/retries on a huge non-streamed payload multiply cost silently.
 
+- **Recent-analysis history** — previously each capture replaced the last result
+  (Azim: "the previous will disappear"). Now the last N (5) analyses persist and are
+  navigable. Implements the architecture.md "last N results for quick re-view".
+  - `src/lib/history.ts` — `getHistory`/`pushHistory` on `chrome.storage.local`
+    (cap `MAX_HISTORY = 5`) + `toCaptureStats` (slim summary, NOT the full payload —
+    storage stays small).
+  - `src/lib/types.ts` — `CaptureStats`, `HistoryEntry`; `ANALYSIS_RESULT` now
+    carries the full `entry` (target + stats + result + id + timestamp).
+  - `src/background/worker.ts` — on success, builds + persists the entry, then
+    broadcasts it (so history survives even a `Ctrl+Shift+A` with the panel closed).
+  - `useInspection` — separates the in-flight `pending` capture from persisted
+    `history` + `viewIndex`; selecting a new element no longer wipes prior results;
+    loads history from storage on mount (survives panel close); `viewOlder`/`viewNewer`.
+  - `CaptureSummary` now takes `target` + `stats` (works for live + stored);
+    new `HistoryNav` (`Recent · n / N`, ‹ older / newer ›), shown when >1 entry.
+
 ## In Progress
 
 - None.
 
 ## Next Up
 
-1. Manual end-to-end verification on a real GSAP site (see Current Goal).
-2. Optional (in scope per architecture.md but not yet built): persist the last N
-   analysis results in `chrome.storage.local` for quick re-view.
+1. Manual end-to-end verification of the history nav on a real GSAP site — inspect
+   2-3 different elements, confirm each is saved and ‹/› navigates between them, and
+   that they survive closing + reopening the panel.
+2. Possible polish (not yet scoped): clear-history control; show capture timestamp;
+   label each history entry by concept name in a list instead of one-at-a-time nav.
 
 ## Open Questions
 

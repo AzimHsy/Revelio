@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
+import { getHistory, MAX_HISTORY } from '../lib/history'
 import type {
   AnalysisResult,
+  HistoryEntry,
   PanelCommand,
   RuntimePayload,
   SelectedTarget,
@@ -13,24 +15,29 @@ import type {
 
 export type PanelStatus = 'idle' | 'inspecting' | 'analyzing'
 
-export interface Capture {
-  target: SelectedTarget
-  payload: RuntimePayload | null
-}
-
 export interface AnalysisFailure {
   reason: string
   missingKey: boolean
 }
 
+/** The capture currently being (or just) analyzed — not yet in history. */
+export interface PendingCapture {
+  target: SelectedTarget
+  payload: RuntimePayload | null
+  result: AnalysisResult | null
+}
+
 export interface InspectionState {
   status: PanelStatus
-  capture: Capture | null
-  result: AnalysisResult | null
+  history: HistoryEntry[]
+  viewIndex: number
+  pending: PendingCapture | null
   error: string | null
   analysisError: AnalysisFailure | null
   startInspect: () => void
   stopInspect: () => void
+  viewOlder: () => void
+  viewNewer: () => void
 }
 
 function sendCommand(command: PanelCommand): void {
@@ -42,10 +49,20 @@ function sendCommand(command: PanelCommand): void {
 
 export function useInspection(): InspectionState {
   const [status, setStatus] = useState<PanelStatus>('idle')
-  const [capture, setCapture] = useState<Capture | null>(null)
-  const [result, setResult] = useState<AnalysisResult | null>(null)
+  const [history, setHistory] = useState<HistoryEntry[]>([])
+  // 0 = newest. Which history entry is shown when not viewing a live capture.
+  const [viewIndex, setViewIndex] = useState(0)
+  const [pending, setPending] = useState<PendingCapture | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [analysisError, setAnalysisError] = useState<AnalysisFailure | null>(null)
+
+  // Load persisted history once so it survives the panel closing/reopening.
+  useEffect(() => {
+    void getHistory().then((stored) => {
+      setHistory(stored)
+      setViewIndex(0)
+    })
+  }, [])
 
   useEffect(() => {
     function onMessage(raw: unknown): void {
@@ -61,26 +78,30 @@ export function useInspection(): InspectionState {
           break
         case 'ELEMENT_SELECTED':
         case 'SECTION_CAPTURED':
+          // New capture becomes the live pending view. History is untouched —
+          // the previous results stay saved and navigable.
           setStatus('idle')
-          setCapture({ target: msg.target, payload: msg.payload })
-          setResult(null)
+          setPending({ target: msg.target, payload: msg.payload, result: null })
           setError(null)
           setAnalysisError(null)
           break
         case 'ANALYSIS_STARTED':
           setStatus('analyzing')
-          setResult(null)
+          setPending((prev) => (prev ? { ...prev, result: null } : prev))
           setAnalysisError(null)
           break
         case 'ANALYSIS_PROGRESS':
-          // Live partial parse — render the answer as it streams in.
-          setResult(msg.partial)
+          setPending((prev) => (prev ? { ...prev, result: msg.partial } : prev))
           break
         case 'ANALYSIS_RESULT':
+          // Fold the finished capture into history and show it (newest).
+          setHistory((prev) => [msg.entry, ...prev].slice(0, MAX_HISTORY))
+          setViewIndex(0)
+          setPending(null)
           setStatus('idle')
-          setResult(msg.result)
           break
         case 'ANALYSIS_ERROR':
+          // Keep `pending` so the capture summary + error/key-form stay visible.
           setStatus('idle')
           setAnalysisError({ reason: msg.reason, missingKey: msg.missingKey })
           break
@@ -96,11 +117,14 @@ export function useInspection(): InspectionState {
 
   return {
     status,
-    capture,
-    result,
+    history,
+    viewIndex,
+    pending,
     error,
     analysisError,
     startInspect: () => sendCommand({ type: 'PANEL_START_INSPECT' }),
     stopInspect: () => sendCommand({ type: 'PANEL_STOP_INSPECT' }),
+    viewOlder: () => setViewIndex((i) => Math.min(i + 1, history.length - 1)),
+    viewNewer: () => setViewIndex((i) => Math.max(i - 1, 0)),
   }
 }

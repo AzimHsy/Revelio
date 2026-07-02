@@ -140,6 +140,27 @@ export interface AnalysisResult {
   parameters: AnalysisParameter[]
 }
 
+/** Slim capture stats stored with a history entry (not the full payload). */
+export interface CaptureStats {
+  tweens: number
+  timelines: number
+  scrollTriggers: number
+  cssAnimations: number
+  gsapVersion: string | null
+  splitTextPresent: boolean
+  clipPath: string | null
+}
+
+/** One persisted analysis, kept in chrome.storage.local for quick re-view. */
+export interface HistoryEntry {
+  id: string
+  target: SelectedTarget
+  stats: CaptureStats | null
+  result: AnalysisResult
+  /** Capture time (epoch ms). */
+  at: number
+}
+
 /**
  * Messages the background worker broadcasts to the side panel. Content events
  * are relayed as-is; broker-level failures surface as RELAY_ERROR.
@@ -149,5 +170,5 @@ export type ToPanelMessage =
   | { type: 'RELAY_ERROR'; reason: string }
   | { type: 'ANALYSIS_STARTED' }
   | { type: 'ANALYSIS_PROGRESS'; partial: AnalysisResult }
-  | { type: 'ANALYSIS_RESULT'; result: AnalysisResult }
+  | { type: 'ANALYSIS_RESULT'; entry: HistoryEntry }
   | { type: 'ANALYSIS_ERROR'; reason: string; missingKey: boolean }

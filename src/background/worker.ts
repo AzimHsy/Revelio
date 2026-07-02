@@ -1,5 +1,14 @@
 import { analyzeCapture, describeAnalysisError } from './claude'
-import type { FromContentMessage, PanelCommand, ToContentMessage, ToPanelMessage } from '../lib/types'
+import { pushHistory, toCaptureStats } from '../lib/history'
+import type {
+  FromContentMessage,
+  HistoryEntry,
+  PanelCommand,
+  RuntimePayload,
+  SelectedTarget,
+  ToContentMessage,
+  ToPanelMessage,
+} from '../lib/types'
 
 // Background service worker: the message broker between the content script
 // and the side panel, and home of the Claude API call — never anywhere else
@@ -40,17 +49,24 @@ function broadcastToPanel(msg: ToPanelMessage): void {
 }
 
 // Captures auto-analyze: the core flow is click → extract → Claude → panel
-// (project-overview.md → Core User Flow).
-async function analyze(
-  target: Parameters<typeof analyzeCapture>[0],
-  payload: NonNullable<Parameters<typeof analyzeCapture>[1]>,
-): Promise<void> {
+// (project-overview.md → Core User Flow). A successful analysis is persisted to
+// the recent-history store here (so it survives the panel closing) and the
+// entry is broadcast to the panel.
+async function analyze(target: SelectedTarget, payload: RuntimePayload): Promise<void> {
   broadcastToPanel({ type: 'ANALYSIS_STARTED' })
   try {
     const result = await analyzeCapture(target, payload, (partial) => {
       broadcastToPanel({ type: 'ANALYSIS_PROGRESS', partial })
     })
-    broadcastToPanel({ type: 'ANALYSIS_RESULT', result })
+    const entry: HistoryEntry = {
+      id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+      target,
+      stats: toCaptureStats(payload),
+      result,
+      at: Date.now(),
+    }
+    await pushHistory(entry)
+    broadcastToPanel({ type: 'ANALYSIS_RESULT', entry })
   } catch (error) {
     broadcastToPanel({ type: 'ANALYSIS_ERROR', ...describeAnalysisError(error) })
   }

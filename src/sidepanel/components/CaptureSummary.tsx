@@ -1,12 +1,16 @@
 import { Clapperboard, MousePointerClick, ScanLine } from 'lucide-react'
-import type { Capture } from '../useInspection'
+import type { CaptureStats, SelectedTarget } from '../../lib/types'
 
-// Interim card showing what a capture extracted (target + runtime counts).
-// The AI analysis sections (concept → explanation → code → parameters) replace
-// the body of the panel once the Claude call lands; this stays as the
-// "what was captured" summary above them.
-export default function CaptureSummary({ capture }: { capture: Capture }) {
-  const { target, payload } = capture
+// Capture context card: target descriptor + runtime counts. Driven by a slim
+// CaptureStats so it renders identically for a live capture and a stored
+// history entry (the full payload is never needed here).
+export default function CaptureSummary({
+  target,
+  stats,
+}: {
+  target: SelectedTarget
+  stats: CaptureStats | null
+}) {
   const label =
     target.kind === 'element'
       ? (target.selector ?? target.tag ?? 'element')
@@ -21,19 +25,19 @@ export default function CaptureSummary({ capture }: { capture: Capture }) {
           {label}
         </span>
       </div>
-      {payload ? (
+      {stats ? (
         <>
           <div className="flex flex-wrap gap-1.5">
-            <Stat label="tweens" value={payload.tweens.length} />
-            <Stat label="timelines" value={payload.timelines.length} />
-            <Stat label="scroll triggers" value={payload.scrollTriggers.length} />
-            <Stat label="CSS animations" value={payload.cssAnimations.length} />
+            <Stat label="tweens" value={stats.tweens} />
+            <Stat label="timelines" value={stats.timelines} />
+            <Stat label="scroll triggers" value={stats.scrollTriggers} />
+            <Stat label="CSS animations" value={stats.cssAnimations} />
           </div>
           <p className="flex items-center gap-1.5 text-xs text-muted">
             <Clapperboard className="h-4 w-4 shrink-0" />
-            {payload.gsapVersion ? `GSAP v${payload.gsapVersion}` : 'No GSAP detected'}
-            {payload.splitTextPresent && ' · SplitText present'}
-            {payload.clipPath && ' · clip-path set'}
+            {stats.gsapVersion ? `GSAP v${stats.gsapVersion}` : 'No GSAP detected'}
+            {stats.splitTextPresent && ' · SplitText present'}
+            {stats.clipPath && ' · clip-path set'}
           </p>
         </>
       ) : (
