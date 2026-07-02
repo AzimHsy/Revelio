@@ -24,6 +24,14 @@ export default defineManifest({
       matches: ['http://*/*', 'https://*/*'],
       run_at: 'document_idle',
     },
+    {
+      // MAIN-world extractor: the only code allowed to read window.gsap /
+      // ScrollTrigger (architecture.md → invariant 1).
+      js: ['src/injected/main.ts'],
+      matches: ['http://*/*', 'https://*/*'],
+      run_at: 'document_idle',
+      world: 'MAIN',
+    },
   ],
   permissions: ['sidePanel', 'storage'],
 })

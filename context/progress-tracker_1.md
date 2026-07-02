@@ -4,12 +4,12 @@ Update this file after every meaningful implementation change.
 
 ## Current Phase
 
-- Content script complete — click-to-select, `Ctrl+Shift+A` capture, highlight overlay.
+- Injected extractor complete — MAIN-world GSAP/ScrollTrigger/CSS extraction, serialized
+  JSON relayed through the content script.
 
 ## Current Goal
 
-- MAIN-world injected extractor — read `window.gsap` / `ScrollTrigger`, serialize to JSON
-  (Next Up #1).
+- Background broker — relay `content → background → sidepanel` (Next Up #1).
 
 ## Completed
 
@@ -58,17 +58,35 @@ Update this file after every meaningful implementation change.
   - Emitted messages have no background listener yet (broker is a later unit);
     they log via `console.debug` for manual verification.
 
+- **MAIN-world injected extractor** — registered as a second manifest content script
+  with `world: 'MAIN'` (`src/injected/main.ts`), passive until asked.
+  - Bridge: content sends `EXTRACT` over `window.postMessage`
+    (`src/content/bridge.ts`, 2s timeout → null payload); injected answers
+    `EXTRACT_RESULT` with a `RuntimePayload` or an error string.
+  - `src/injected/gsap.ts` — tweens/timelines via `gsap.globalTimeline.getChildren()`,
+    ScrollTriggers via `ScrollTrigger.getAll()`; scope = selected element
+    (target within/containing selection) or viewport intersection for section
+    captures. Everything guarded — page globals are untrusted. Capped
+    (30 tweens / 10 timelines / 20 triggers / 20 CSS animations).
+  - `src/injected/css.ts` — CSS animations + transitions via `getAnimations()`
+    (resolved keyframes + timing, works with cross-origin stylesheets).
+  - `src/lib/serialize.ts` — `toJsonSafe` (depth/keys/items/string caps,
+    functions → `"[function name]"`, Elements → `"div#id.class"` descriptors)
+    enforcing invariant 2 before anything crosses a world.
+  - `src/lib/types.ts` grew: `RuntimePayload` (+ tween/timeline/ScrollTrigger/CSS
+    shapes), bridge request/response types; `ELEMENT_SELECTED` / `SECTION_CAPTURED`
+    now carry `payload: RuntimePayload | null`.
+
 ## In Progress
 
 - None.
 
 ## Next Up
 
-1. MAIN-world injected extractor — read `window.gsap` / `ScrollTrigger`, serialize to JSON.
-2. Background broker — relay `injected → content → background → sidepanel`.
-3. Sidepanel wiring — enable the Inspect button + live status chip.
-4. Background Claude call — read key from storage, send payload, parse structured response.
-5. Result rendering — concept, explanation, code, parameters in the panel.
+1. Background broker — relay `content → background → sidepanel`.
+2. Sidepanel wiring — enable the Inspect button + live status chip.
+3. Background Claude call — read key from storage, send payload, parse structured response.
+4. Result rendering — concept, explanation, code, parameters in the panel.
 
 ## Open Questions
 
@@ -79,8 +97,9 @@ Update this file after every meaningful implementation change.
   too noisy in practice.
 - **CSS-only elements**: what does the output look like when an element animates via CSS
   with no GSAP present? (Still useful — define the shape.)
-- **ScrollTrigger capture**: `ScrollTrigger.getAll()` returns all triggers, but values
-  (progress, active) depend on scroll position. Snapshot all, or only active-in-viewport?
+- ~~**ScrollTrigger capture**~~ **Resolved (V1)**: snapshot all triggers matching the
+  capture scope (element relation, or viewport intersection for sections), each with its
+  current `progress` + `isActive` so Claude sees the scroll state at capture time.
 
 ## Architecture Decisions
 
@@ -107,3 +126,7 @@ Update this file after every meaningful implementation change.
 - Note: under Vite 8 (Rolldown), the build prints a harmless
   `Both rollupOptions and rolldownOptions were specified by "crx:content-scripts"`
   warning — crxjs's legacy rollup option is ignored, no functional impact.
+- **crxjs gotcha**: content-script entry files must have **unique basenames**. Two
+  entries both named `index.ts` collide in crxjs's emitted-chunk bookkeeping and the
+  build dies with `Content script fileName is undefined`. Hence the injected entry is
+  `src/injected/main.ts` (mnemonic: MAIN world), not `index.ts`.

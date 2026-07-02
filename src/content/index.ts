@@ -1,9 +1,11 @@
 import type { FromContentMessage, SelectedTarget, ToContentMessage } from '../lib/types'
+import { requestExtraction } from './bridge'
 import { startInspect, stopInspect } from './selection'
 
 // Content script entry (isolated world). Handles selection + the capture
-// shortcut and relays serialized data. Never reads page globals like
-// window.gsap — that is the MAIN-world injected script's job (architecture.md).
+// shortcut, asks the MAIN-world extractor for runtime data, and relays
+// serialized JSON. Never reads page globals like window.gsap itself
+// (architecture.md → invariant 1).
 
 function send(msg: FromContentMessage): void {
   chrome.runtime.sendMessage(msg).catch(() => {
@@ -13,12 +15,21 @@ function send(msg: FromContentMessage): void {
   })
 }
 
+// Selections get enriched with the extractor's runtime payload before relay.
+function emit(msg: FromContentMessage): void {
+  if (msg.type === 'ELEMENT_SELECTED' || msg.type === 'SECTION_CAPTURED') {
+    void requestExtraction(msg.target).then((payload) => send({ ...msg, payload }))
+    return
+  }
+  send(msg)
+}
+
 chrome.runtime.onMessage.addListener((raw: unknown) => {
   if (typeof raw !== 'object' || raw === null || !('type' in raw)) return
   const msg = raw as ToContentMessage
   switch (msg.type) {
     case 'START_INSPECT':
-      startInspect(send)
+      startInspect(emit)
       break
     case 'STOP_INSPECT':
       stopInspect({ cancelled: true })
@@ -33,7 +44,7 @@ document.addEventListener(
   (event) => {
     if (event.ctrlKey && event.shiftKey && event.code === 'KeyA') {
       event.preventDefault()
-      send({ type: 'SECTION_CAPTURED', target: captureViewport() })
+      emit({ type: 'SECTION_CAPTURED', target: captureViewport(), payload: null })
     }
   },
   true,

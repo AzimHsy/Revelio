@@ -49,7 +49,8 @@ function onClick(event: MouseEvent): void {
   const send = emit
   const target = describeElement(el)
   stopInspect({ cancelled: false })
-  send?.({ type: 'ELEMENT_SELECTED', target })
+  // payload is filled in by the entry module (extraction bridge) before relay.
+  send?.({ type: 'ELEMENT_SELECTED', target, payload: null })
 }
 
 function onKeyDown(event: KeyboardEvent): void {
