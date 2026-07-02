@@ -46,7 +46,10 @@ export default defineManifest({
     pages: ['src/sandbox/preview.html'],
   },
   content_security_policy: {
+    // Locked down: only bundled scripts + eval (for new Function) run; no XHR/
+    // fetch. Images/fonts are allowed so the cloned element renders with its real
+    // assets (failed images fall back to a placeholder in the sandbox).
     sandbox:
-      "sandbox allow-scripts; default-src 'none'; script-src 'self' 'unsafe-eval'; style-src 'unsafe-inline'",
+      "sandbox allow-scripts; default-src 'none'; script-src 'self' 'unsafe-eval'; style-src 'unsafe-inline'; img-src * data: blob:; font-src * data:",
   },
 })

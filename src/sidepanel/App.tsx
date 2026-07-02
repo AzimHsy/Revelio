@@ -52,7 +52,11 @@ export default function App() {
               </p>
             )}
             {pending.result && (
-              <ResultView result={pending.result} streaming={status === 'analyzing'} />
+              <ResultView
+                result={pending.result}
+                clone={pending.clone}
+                streaming={status === 'analyzing'}
+              />
             )}
           </>
         ) : entry ? (
@@ -65,7 +69,7 @@ export default function App() {
               onClear={clearHistory}
             />
             <CaptureSummary target={entry.target} stats={entry.stats} thumbnail={entry.thumbnail} />
-            <ResultView result={entry.result} />
+            <ResultView result={entry.result} clone={entry.clone} />
           </>
         ) : (
           <IdleState />

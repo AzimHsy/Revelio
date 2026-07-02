@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { clearHistory as clearStoredHistory, getHistory, MAX_HISTORY } from '../lib/history'
 import type {
   AnalysisResult,
+  ElementClone,
   HistoryEntry,
   PanelCommand,
   RuntimePayload,
@@ -27,6 +28,8 @@ export interface PendingCapture {
   result: AnalysisResult | null
   /** Cropped element screenshot — arrives via THUMBNAIL_READY, may be absent. */
   thumbnail?: string
+  /** Self-contained HTML clone for the faithful preview, if it was captured. */
+  clone?: ElementClone | null
 }
 
 export interface InspectionState {
@@ -83,7 +86,12 @@ export function useInspection(): InspectionState {
           // New capture becomes the live pending view. History is untouched —
           // the previous results stay saved and navigable.
           setStatus('idle')
-          setPending({ target: msg.target, payload: msg.payload, result: null })
+          setPending({
+            target: msg.target,
+            payload: msg.payload,
+            result: null,
+            clone: msg.clone ?? null,
+          })
           setError(null)
           setAnalysisError(null)
           break

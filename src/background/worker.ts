@@ -2,6 +2,7 @@ import { analyzeCapture, describeAnalysisError } from './claude'
 import { captureThumbnail } from './screenshot'
 import { pushHistory, toCaptureStats } from '../lib/history'
 import type {
+  ElementClone,
   FromContentMessage,
   HistoryEntry,
   PanelCommand,
@@ -28,7 +29,7 @@ chrome.runtime.onMessage.addListener((raw: unknown, sender) => {
     const msg = raw as FromContentMessage
     broadcastToPanel(msg)
     if ((msg.type === 'ELEMENT_SELECTED' || msg.type === 'SECTION_CAPTURED') && msg.payload) {
-      void analyze(msg.target, msg.payload, sender.tab?.windowId)
+      void analyze(msg.target, msg.payload, sender.tab?.windowId, msg.clone ?? null)
     }
     return
   }
@@ -57,6 +58,7 @@ async function analyze(
   target: SelectedTarget,
   payload: RuntimePayload,
   windowId?: number,
+  clone: ElementClone | null = null,
 ): Promise<void> {
   broadcastToPanel({ type: 'ANALYSIS_STARTED' })
   // Screenshot runs in parallel with the Claude call — it's optional, so it
@@ -67,7 +69,7 @@ async function analyze(
     if (thumbnail) broadcastToPanel({ type: 'THUMBNAIL_READY', thumbnail })
   })
   try {
-    const result = await analyzeCapture(target, payload, (partial) => {
+    const result = await analyzeCapture(target, payload, clone, (partial) => {
       broadcastToPanel({ type: 'ANALYSIS_PROGRESS', partial })
     })
     const entry: HistoryEntry = {
@@ -76,6 +78,7 @@ async function analyze(
       stats: toCaptureStats(payload),
       result,
       thumbnail: (await thumbnailPromise) ?? undefined,
+      clone,
       at: Date.now(),
     }
     await pushHistory(entry)

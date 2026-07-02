@@ -2,7 +2,7 @@ import Anthropic from '@anthropic-ai/sdk'
 import { isComplete, parseAnalysisText } from '../lib/analysis'
 import { buildUserPrompt, SYSTEM_PROMPT } from '../lib/prompt'
 import { getApiKey } from '../lib/storage'
-import type { AnalysisResult, RuntimePayload, SelectedTarget } from '../lib/types'
+import type { ElementClone, AnalysisResult, RuntimePayload, SelectedTarget } from '../lib/types'
 
 // How often (ms) to push a partial parse to the panel while streaming — often
 // enough to feel live, throttled so we don't spam the message channel.
@@ -29,6 +29,7 @@ export class MissingKeyError extends Error {
 export async function analyzeCapture(
   target: SelectedTarget,
   payload: RuntimePayload,
+  clone: ElementClone | null,
   onProgress?: (partial: AnalysisResult) => void,
 ): Promise<AnalysisResult> {
   const apiKey = await getApiKey()
@@ -49,7 +50,7 @@ export async function analyzeCapture(
     model: MODEL,
     max_tokens: MAX_TOKENS,
     system: SYSTEM_PROMPT,
-    messages: [{ role: 'user', content: buildUserPrompt(target, payload) }],
+    messages: [{ role: 'user', content: buildUserPrompt(target, payload, clone?.outline ?? null) }],
   })
 
   let text = ''

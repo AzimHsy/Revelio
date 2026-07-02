@@ -1,4 +1,5 @@
 import type { FromContentMessage, SelectedTarget } from '../lib/types'
+import { serializeElement } from './clone'
 import { hideOverlay, showOverlay } from './overlay'
 
 // Click-to-select inspection mode with a steerable "current target": hover sets
@@ -138,10 +139,13 @@ function traverse(step: (el: Element) => Element | null): void {
 function selectCurrent(): void {
   if (!current) return
   const target = describeElement(current)
+  // Serialize the element's real design NOW, before we tear down inspect mode —
+  // the sandbox preview reproduces it (best-effort; null if too large/failed).
+  const clone = serializeElement(current)
   const send = emit
   stopInspect({ cancelled: false })
   // payload is filled in by the entry module (extraction bridge) before relay.
-  send?.({ type: 'ELEMENT_SELECTED', target, payload: null })
+  send?.({ type: 'ELEMENT_SELECTED', target, payload: null, clone })
 }
 
 export function describeElement(el: Element): SelectedTarget {

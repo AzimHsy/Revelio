@@ -1,20 +1,28 @@
 import { useEffect, useRef } from 'react'
 import { RefreshCw } from 'lucide-react'
+import type { ElementClone } from '../../lib/types'
 
-// Embeds the sandboxed preview page and posts the model's preview code to it.
-// The sandbox runs that code in an opaque origin with no extension APIs, so this
-// component is the trust boundary: it only ever SENDS a code string and never
-// acts on anything the iframe sends back (it just re-posts on the ready signal).
-export default function PreviewStage({ code }: { code: string }) {
+// Embeds the sandboxed preview page and posts the model's preview code (plus the
+// element clone, when captured) to it. The sandbox runs that code in an opaque
+// origin with no extension APIs, so this component is the trust boundary: it only
+// ever SENDS data and never acts on anything the iframe sends back (it just
+// re-posts on the ready signal).
+export default function PreviewStage({
+  code,
+  clone,
+}: {
+  code: string
+  clone?: ElementClone | null
+}) {
   const iframeRef = useRef<HTMLIFrameElement>(null)
 
   function post(): void {
-    iframeRef.current?.contentWindow?.postMessage({ type: 'RUN_PREVIEW', code }, '*')
+    iframeRef.current?.contentWindow?.postMessage({ type: 'RUN_PREVIEW', code, clone }, '*')
   }
 
-  // Re-post whenever the code changes (the same iframe is reused across history
-  // entries). The sandbox also emits PREVIEW_READY once loaded; posting on both
-  // signals means the first paint is never missed regardless of ordering.
+  // Re-post whenever the code or clone changes (the same iframe is reused across
+  // history entries). The sandbox also emits PREVIEW_READY once loaded; posting on
+  // both signals means the first paint is never missed regardless of ordering.
   useEffect(() => {
     function onMessage(event: MessageEvent): void {
       if ((event.data as { type?: unknown })?.type === 'PREVIEW_READY') post()
@@ -23,7 +31,7 @@ export default function PreviewStage({ code }: { code: string }) {
     post()
     return () => window.removeEventListener('message', onMessage)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [code])
+  }, [code, clone])
 
   return (
     <section className="flex flex-col gap-1.5">

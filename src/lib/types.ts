@@ -14,6 +14,9 @@ export interface ElementClone {
   html: string
   width: number
   height: number
+  /** Compact tag.class tree of the real element, so the model can target its
+   *  actual selectors in the preview code (not the fallback demo boxes). */
+  outline: string
 }
 
 /** Serializable descriptor of what the user selected on the page. */
@@ -188,6 +191,8 @@ export interface HistoryEntry {
   result: AnalysisResult
   /** Cropped screenshot of the inspected element (webp data URL). Optional. */
   thumbnail?: string
+  /** Self-contained HTML clone for the faithful preview. Optional. */
+  clone?: ElementClone | null
   /** Capture time (epoch ms). */
   at: number
 }

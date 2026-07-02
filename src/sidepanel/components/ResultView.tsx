@@ -1,5 +1,5 @@
 import { Sparkles } from 'lucide-react'
-import type { AnalysisResult } from '../../lib/types'
+import type { AnalysisResult, ElementClone } from '../../lib/types'
 import CodeBlock from './CodeBlock'
 import PreviewStage from './PreviewStage'
 
@@ -9,9 +9,11 @@ import PreviewStage from './PreviewStage'
 // blinking caret trails the last-filled section while `streaming`.
 export default function ResultView({
   result,
+  clone,
   streaming = false,
 }: {
   result: AnalysisResult
+  clone?: ElementClone | null
   streaming?: boolean
 }) {
   const hasParams = result.parameters.length > 0
@@ -61,7 +63,9 @@ export default function ResultView({
       {/* Only run the preview once streaming has finished — partial code
           mid-stream would be a syntax error, and re-mounting the iframe every
           120ms partial is wasteful. */}
-      {!streaming && result.previewCode && <PreviewStage code={result.previewCode} />}
+      {!streaming && result.previewCode && (
+        <PreviewStage code={result.previewCode} clone={clone} />
+      )}
 
       {hasParams && (
         <section className="flex flex-col gap-1.5">

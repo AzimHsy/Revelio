@@ -10,6 +10,9 @@ import type { ElementClone } from '../lib/types'
 const MAX_NODES = 500
 const MAX_DEPTH = 14
 const MAX_HTML_BYTES = 300_000
+// Outline (shown to the model so it targets real selectors) stays small.
+const OUTLINE_MAX_LINES = 40
+const OUTLINE_MAX_DEPTH = 5
 
 const UNSAFE_TAGS = new Set(['SCRIPT', 'STYLE', 'LINK', 'META', 'NOSCRIPT', 'IFRAME', 'OBJECT', 'EMBED'])
 
@@ -53,9 +56,32 @@ export function serializeElement(el: Element): ElementClone | null {
     bake(el, clone, 0, { n: MAX_NODES })
     const html = clone.outerHTML
     if (html.length > MAX_HTML_BYTES) return null
-    return { html, width: Math.round(rect.width), height: Math.round(rect.height) }
+    const lines: string[] = []
+    outline(el, 0, lines)
+    return {
+      html,
+      width: Math.round(rect.width),
+      height: Math.round(rect.height),
+      outline: lines.join('\n'),
+    }
   } catch {
     return null
+  }
+}
+
+// Compact tag.class tree of the REAL element (depth/line capped) so the model
+// can write preview code that targets the actual selectors present in the clone.
+function outline(el: Element, depth: number, lines: string[]): void {
+  if (lines.length >= OUTLINE_MAX_LINES || depth > OUTLINE_MAX_DEPTH) return
+  const tag = el.tagName.toLowerCase()
+  const cls = Array.from(el.classList)
+    .slice(0, 3)
+    .map((c) => `.${c}`)
+    .join('')
+  lines.push(`${'  '.repeat(depth)}${tag}${cls}`)
+  for (const child of Array.from(el.children)) {
+    if (lines.length >= OUTLINE_MAX_LINES) break
+    outline(child, depth + 1, lines)
   }
 }
 

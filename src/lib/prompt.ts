@@ -12,7 +12,8 @@ CSS animations with resolved keyframes). Your job:
 2. Explain the technique in plain English so a developer learns the vocabulary, not just the code.
 3. Write clean, ready-to-use GSAP code that recreates the technique as a strong starting point.
 4. Break down the key parameters and what each one controls.
-5. Write a self-contained PREVIEW that demonstrates the technique on a fixed demo stage.
+5. Write a self-contained PREVIEW that demonstrates the technique on the sandbox stage described
+   under "Preview stage" at the end of the user message.
 
 Rules for the GSAP code:
 - Use modern GSAP 3 syntax. Include plugin registration (gsap.registerPlugin) when ScrollTrigger or
@@ -22,13 +23,12 @@ Rules for the GSAP code:
 - If no GSAP is present but CSS animations are, still produce the GSAP equivalent of the technique.
 
 Rules for the PREVIEW code (this runs live in a sandbox, so it MUST be self-contained):
-- The sandbox provides a global \`gsap\` (core only) and this exact DOM, already in the page:
-  a \`<div class="demo-stage">\` containing SIX \`<div class="demo-item">\` blocks.
-- Target ONLY \`.demo-stage\` and \`.demo-item\` (e.g. gsap.from(".demo-item", { ... })). Do not create,
-  query, or assume any other elements, selectors, images, or text.
+- The sandbox provides a global \`gsap\` (core only) and a SPECIFIC DOM, already in the page, described
+  under "Preview stage" at the end of the user message. Target ONLY the selectors listed there
+  (e.g. gsap.from(".hero .line", { ... })). Do not create, query, or assume any other elements or text.
 - Use CORE gsap ONLY: gsap.to/from/fromTo/timeline and stagger. NO plugins — ScrollTrigger, SplitText,
   and gsap.registerPlugin are NOT available and will throw. Reproduce text/line effects by staggering
-  the six .demo-item blocks as if they were lines or words.
+  the relevant child elements listed in the stage outline.
 - CRITICAL — the preview must AUTO-PLAY with NO user interaction. There is no mouse, hover, click,
   focus, drag, or scroll in the sandbox. NEVER add event listeners (addEventListener, onmouseenter,
   onclick, etc.) and NEVER leave a timeline paused waiting for one — it would just sit blank. For any
@@ -36,7 +36,7 @@ Rules for the PREVIEW code (this runs live in a sandbox, so it MUST be self-cont
   it as an automatic loop: play the "in" state, hold briefly, play the "out" state, and repeat
   (e.g. a timeline with repeat: -1, or repeat: -1 + yoyo). Simulate the trigger on a timer, do not wait
   for it.
-- NEVER end in an invisible state. If you start items hidden (opacity 0, scaled/translated away), the
+- NEVER end in an invisible state. If you start elements hidden (opacity 0, scaled/translated away), the
   animation MUST bring them back to fully visible within the loop so the stage is never blank.
 - Do not reference window, document, fetch, or any external resource.
 
@@ -53,9 +53,13 @@ the GSAP code, raw (no triple-backtick fences)
 one parameter per line, formatted as: name | value | description
 (repeat the line for each key parameter — the description explains what it controls)
 <<<PREVIEW>>>
-the self-contained core-gsap preview code, raw (no fences), targeting only .demo-stage / .demo-item`
+the self-contained core-gsap preview code, raw (no fences), targeting the selectors in "Preview stage"`
 
-export function buildUserPrompt(target: SelectedTarget, payload: RuntimePayload): string {
+export function buildUserPrompt(
+  target: SelectedTarget,
+  payload: RuntimePayload,
+  previewOutline: string | null = null,
+): string {
   const subject =
     target.kind === 'element'
       ? `the element \`${target.selector ?? target.tag ?? 'unknown'}\``
@@ -68,5 +72,23 @@ export function buildUserPrompt(target: SelectedTarget, payload: RuntimePayload)
 Runtime animation data extracted from the live page. This is a representative sample; the \
 \`counts\` field gives the true totals behind the sample:
 
-${JSON.stringify(digestForPrompt(payload))}`
+${JSON.stringify(digestForPrompt(payload))}
+
+${previewStageSection(previewOutline)}`
+}
+
+// Describes the DOM the PREVIEW code will run against. When we captured a clone
+// of the real element, the preview stage IS that element — so the model targets
+// its real selectors (listed as a tag.class outline). Otherwise it's the generic
+// fallback stage of six demo blocks.
+function previewStageSection(previewOutline: string | null): string {
+  if (previewOutline && previewOutline.trim()) {
+    return `Preview stage — your PREVIEW code animates the ACTUAL inspected element, already in the \
+sandbox with its real markup and styles. Target these real selectors (tag.class tree):
+
+${previewOutline}`
+  }
+  return `Preview stage — your PREVIEW code animates a generic stage: a <div class="demo-stage"> \
+containing six <div class="demo-item"> blocks. Target only .demo-stage / .demo-item, treating the six \
+blocks as lines/words/cards as appropriate.`
 }

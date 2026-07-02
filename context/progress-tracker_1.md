@@ -250,24 +250,55 @@ Update this file after every meaningful implementation change.
   - `src/sidepanel/components/IdleState.tsx` — documents the new keys (added a `Kbd` helper).
   - `npm run build` green.
 
+- **Faithful-clone preview (Phase B)** — the preview ran on 6 generic gradient boxes, so it
+  never resembled the inspected component (Azim's core complaint was *fidelity*, not anim
+  params). Now the preview reproduces the **actual inspected element** — real markup + baked
+  computed styles — and animates it.
+  - `src/content/clone.ts` (new) — `serializeElement(el)`: deep-clone the subtree, bake each
+    node's `getComputedStyle` into inline styles (curated ~100 visual props; `transition`/
+    `animation` excluded so GSAP drives motion), absolute-ize `<img src>`, strip
+    scripts/`on*`/unsafe tags, cap nodes/depth/bytes (500/14/300KB → null if over). Also emits
+    a compact **tag.class outline** (depth/line-capped) so the model can target real selectors.
+  - `src/lib/types.ts` — `ElementClone { html, width, height, outline }`; `clone?` added to
+    `ELEMENT_SELECTED`/`SECTION_CAPTURED`, `HistoryEntry`, and `PendingCapture`. All optional →
+    old history still valid.
+  - Capture flow: `selection.ts` serializes the element at select time and attaches `clone` to
+    the message; `index.ts` passes it through; `worker.ts` stores it on the `HistoryEntry` and
+    forwards `clone.outline` to `analyzeCapture` → `buildUserPrompt`.
+  - `src/sandbox/preview.ts` — when a clone is present, injects its HTML into a scale-to-fit
+    wrapper (never scales up) instead of the demo boxes; images that fail to load swap to a
+    placeholder; scripts stripped defensively. Falls back to the 6-box demo when no clone.
+  - `src/manifest.config.ts` — sandbox CSP relaxed to allow **images/fonts only**
+    (`img-src * data: blob:; font-src * data:`); still no script/XHR loosening.
+  - `src/lib/prompt.ts` — the `<<<PREVIEW>>>` DOM is now described dynamically per capture
+    ("Preview stage" section in the user prompt = the real tag.class outline when cloned, else
+    the demo stage); model targets the real selectors. Auto-play/no-listener/never-hidden
+    hardening retained.
+  - `PreviewStage`/`ResultView`/`App` thread `clone` through to the sandbox postMessage.
+  - crxjs still auto-emits the sandbox (gsap bundled). `npm run build` green.
+
 ## In Progress
 
-- **Faithful-clone preview (Phase B)** — replacing the abstract 6-box demo stage with a
-  reproduction of the actual inspected element (real markup + baked computed CSS), so the
-  preview looks like what you inspected. Unit 3 (serialize element) in progress; Units 4-5
-  (render clone in sandbox + placeholders + CSP; prompt animates real selectors) next.
-  See `.claude/plans/is-it-possible-if-warm-cloud.md`.
+- None. Both phases (selection reach + faithful-clone preview) built + building green; awaiting
+  live verification in Chrome.
 
 ## Next Up
 
 1. Manual verification on gsap.com (**reload the extension card after building**):
-   - Unit 1: inspect an animated element → thumbnail in the summary + on the history row;
-     survives closing/reopening the panel.
-   - Unit 2: under the GSAP code, the demo stage animates the technique; **Replay**
-     re-runs it; a pre-feature history entry (no `previewCode`) simply omits the preview.
-   - Watch for a sandbox CSP error in the iframe console — if `script-src 'self'` fails to
-     load the bundled preview script in the opaque origin, loosen the sandbox CSP.
-2. Possible polish (not yet scoped): show capture timestamp on each history row.
+   - **Selection reach**: hover a component sitting under an overlay/link wrapper → use ↑↓←→
+     to walk the DOM and `[`/`]` to reach the element beneath the blocker (the overlay label
+     confirms the target) → Enter selects it.
+   - **Faithful-clone preview**: inspect a styled component → the Preview now shows *that
+     component's real design* animating (not the 6 boxes); a broken image → placeholder; text
+     falls back to a close system font; Replay re-runs. Big elements scale to fit.
+   - Fallbacks: a pre-clone history entry (no `clone`) still shows the old 6-box demo; if a
+     capture's clone was too large/failed, it falls back too.
+   - Watch the iframe console for a sandbox CSP error (bundled preview script under
+     `script-src 'self'` in the opaque origin) — loosen the sandbox CSP if it appears.
+2. Known follow-ups from the plan's honest limits: **pseudo-elements** (`::before/::after`)
+   aren't cloned yet (some underline/mask reveals look off) → read pseudo computed styles +
+   inject stand-in spans; CORS images → placeholder; web fonts → system fallback.
+3. Possible polish (not yet scoped): show capture timestamp on each history row.
 
 ## Open Questions
 
