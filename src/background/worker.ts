@@ -2,14 +2,17 @@ import { analyzeCapture, describeAnalysisError } from './claude'
 import { captureThumbnail } from './screenshot'
 import { pushHistory, toCaptureStats } from '../lib/history'
 import type {
+  CropRect,
   ElementClone,
   FromContentMessage,
   HistoryEntry,
+  OffscreenToWorker,
   PanelCommand,
   RuntimePayload,
   SelectedTarget,
   ToContentMessage,
   ToPanelMessage,
+  WorkerToOffscreen,
 } from '../lib/types'
 
 // Background service worker: the message broker between the content script
@@ -34,6 +37,19 @@ chrome.runtime.onMessage.addListener((raw: unknown, sender) => {
     return
   }
 
+  // Messages coming back from the offscreen recorder document (no sender.tab).
+  if (raw && typeof raw === 'object' && 'type' in raw) {
+    const t = (raw as { type: string }).type
+    if (t === 'RECORDING_DATA') {
+      broadcastToPanel({ type: 'RECORDING_READY', url: (raw as OffscreenToWorker & { type: 'RECORDING_DATA' }).dataUrl })
+      return
+    }
+    if (t === 'RECORDING_FAILED') {
+      broadcastToPanel({ type: 'RECORDING_ERROR', reason: (raw as OffscreenToWorker & { type: 'RECORDING_FAILED' }).reason })
+      return
+    }
+  }
+
   const command = raw as PanelCommand
   switch (command.type) {
     case 'PANEL_START_INSPECT':
@@ -45,8 +61,55 @@ chrome.runtime.onMessage.addListener((raw: unknown, sender) => {
     case 'PANEL_INSPECT_KEY':
       void sendToActiveTab({ type: 'INSPECT_KEY', key: command.key })
       break
+    case 'PANEL_START_RECORD':
+      void startRecording(command.crop ?? null)
+      break
+    case 'PANEL_STOP_RECORD':
+      sendToOffscreen({ type: 'STOP_RECORDING' })
+      break
+    case 'PANEL_REPLAY_SCROLL':
+      void sendToActiveTab({ type: 'REPLAY_SCROLL', selector: command.selector })
+      break
   }
 })
+
+// ---------------------------------------------------------------------------
+// Screen recording. The worker mints the tabCapture streamId (needs the tab's
+// activeTab grant from the toolbar-opened panel) and hands it to the offscreen
+// document, which owns the MediaRecorder.
+// ---------------------------------------------------------------------------
+
+const OFFSCREEN_PATH = 'src/offscreen/recorder.html'
+
+async function startRecording(crop: CropRect | null): Promise<void> {
+  try {
+    const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true })
+    if (tab?.id === undefined) throw new Error('No active tab to record.')
+    await ensureOffscreen()
+    const streamId = await chrome.tabCapture.getMediaStreamId({ targetTabId: tab.id })
+    sendToOffscreen({ type: 'START_RECORDING', streamId, crop })
+    broadcastToPanel({ type: 'RECORDING_STARTED' })
+  } catch (error) {
+    broadcastToPanel({
+      type: 'RECORDING_ERROR',
+      reason: error instanceof Error ? error.message : 'Could not start recording.',
+    })
+  }
+}
+
+async function ensureOffscreen(): Promise<void> {
+  const has = await chrome.offscreen.hasDocument()
+  if (has) return
+  await chrome.offscreen.createDocument({
+    url: OFFSCREEN_PATH,
+    reasons: [chrome.offscreen.Reason.USER_MEDIA],
+    justification: "Record the inspected element's animation from the tab.",
+  })
+}
+
+function sendToOffscreen(msg: WorkerToOffscreen): void {
+  chrome.runtime.sendMessage(msg).catch(() => {})
+}
 
 function broadcastToPanel(msg: ToPanelMessage): void {
   // Rejects when the panel is closed — nothing to update, safe to ignore.

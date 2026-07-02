@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { clearHistory as clearStoredHistory, getHistory, MAX_HISTORY } from '../lib/history'
 import type {
   AnalysisResult,
+  CropRect,
   ElementClone,
   HistoryEntry,
   PanelCommand,
@@ -32,6 +33,14 @@ export interface PendingCapture {
   clone?: ElementClone | null
 }
 
+/** Screen-recording state for the current tab (a page-level action). */
+export interface RecordingState {
+  isRecording: boolean
+  /** Data URL of the finished webm clip, if any. */
+  url: string | null
+  error: string | null
+}
+
 export interface InspectionState {
   status: PanelStatus
   history: HistoryEntry[]
@@ -39,10 +48,14 @@ export interface InspectionState {
   pending: PendingCapture | null
   error: string | null
   analysisError: AnalysisFailure | null
+  recording: RecordingState
   startInspect: () => void
   stopInspect: () => void
   selectEntry: (index: number) => void
   clearHistory: () => void
+  startRecording: (crop?: CropRect | null) => void
+  stopRecording: () => void
+  replayOnPage: (selector: string) => void
 }
 
 function sendCommand(command: PanelCommand): void {
@@ -60,6 +73,11 @@ export function useInspection(): InspectionState {
   const [pending, setPending] = useState<PendingCapture | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [analysisError, setAnalysisError] = useState<AnalysisFailure | null>(null)
+  const [recording, setRecording] = useState<RecordingState>({
+    isRecording: false,
+    url: null,
+    error: null,
+  })
 
   // Load persisted history once so it survives the panel closing/reopening.
   useEffect(() => {
@@ -122,6 +140,15 @@ export function useInspection(): InspectionState {
           setStatus('idle')
           setError(msg.reason)
           break
+        case 'RECORDING_STARTED':
+          setRecording({ isRecording: true, url: null, error: null })
+          break
+        case 'RECORDING_READY':
+          setRecording({ isRecording: false, url: msg.url, error: null })
+          break
+        case 'RECORDING_ERROR':
+          setRecording({ isRecording: false, url: null, error: msg.reason })
+          break
       }
     }
     chrome.runtime.onMessage.addListener(onMessage)
@@ -152,6 +179,7 @@ export function useInspection(): InspectionState {
     pending,
     error,
     analysisError,
+    recording,
     startInspect: () => sendCommand({ type: 'PANEL_START_INSPECT' }),
     stopInspect: () => sendCommand({ type: 'PANEL_STOP_INSPECT' }),
     selectEntry: (index: number) => setViewIndex(index),
@@ -161,5 +189,11 @@ export function useInspection(): InspectionState {
         setViewIndex(0)
       })
     },
+    startRecording: (crop?: CropRect | null) => {
+      setRecording({ isRecording: true, url: null, error: null })
+      sendCommand({ type: 'PANEL_START_RECORD', crop: crop ?? null })
+    },
+    stopRecording: () => sendCommand({ type: 'PANEL_STOP_RECORD' }),
+    replayOnPage: (selector: string) => sendCommand({ type: 'PANEL_REPLAY_SCROLL', selector }),
   }
 }

@@ -283,10 +283,38 @@ Update this file after every meaningful implementation change.
   - `PreviewStage`/`ResultView`/`App` thread `clone` through to the sandbox postMessage.
   - crxjs still auto-emits the sandbox (gsap bundled). `npm run build` green.
 
+- **Record the real element animation (tabCapture video)** — every prior output is a
+  *reconstruction* (clone + Claude's guessed GSAP); Azim wanted the **exact** real motion. Now
+  a **Record** button captures the real element animating from the tab as webm and plays it
+  back — real pixels, so it also sidesteps every clone limit (pseudo-elements, fonts, CORS
+  images). 3 units, `npm run build` green each.
+  - **Unit 1 — pipeline**: `tabCapture` + `offscreen` permissions; new `src/offscreen/
+    recorder.html`+`recorder.ts` hosts the `MediaRecorder` (SWs can't). Worker mints
+    `chrome.tabCapture.getMediaStreamId({ targetTabId })` (activeTab grant from the toolbar
+    panel), ensures one offscreen doc (`reasons:['USER_MEDIA']`), and relays start/stop. Offscreen
+    `getUserMedia({video:{mandatory:{chromeMediaSource:'tab',chromeMediaSourceId}}})` → webm Blob
+    → data URL → panel `<video autoplay loop muted>`. Messages: `PANEL_START/STOP_RECORD`,
+    `RECORDING_STARTED/READY/ERROR`, worker⇄offscreen `START/STOP_RECORDING` + `RECORDING_DATA/
+    FAILED`. `vite.config.ts` gained a `rollupOptions.input` for the offscreen page (not a manifest
+    field, so crxjs wouldn't emit it — verified emitted).
+  - **Unit 2 — crop to element**: `SelectedTarget` gained `viewport {width,height}` (CSS px, set in
+    `selection.ts`+`content/index.ts`); new `CropRect`. Offscreen plays the tab stream into a hidden
+    `<video>`, draws the element region onto a canvas each rAF (maps CSS rect→frame via
+    `frame/viewport` ratio — resolution-independent), records `canvas.captureStream(30)`, downscaled
+    to ≤480px. Element captures crop; viewport captures record the whole tab.
+  - **Unit 3 — triggers + polish**: 20s hard cap (offscreen); elapsed-seconds timer; **Replay on
+    page** button → `REPLAY_SCROLL {selector}` scrolls the element out then smooth-back to re-fire
+    scroll reveals; **Download** the webm. Persistence: recordings stay on the live view only — NOT
+    stored in `chrome.storage.local` history (webms would blow the quota).
+  - `src/sidepanel/components/RecordingView.tsx` (new) + `useInspection` record state/actions + App
+    wiring (crops to the currently-shown element).
+  - **Honest limits**: element must be on-screen while recording; CSS `:hover` needs the user to
+    hover it live (synthetic events can't trigger `:hover`). Complements the reconstructed preview.
+
 ## In Progress
 
-- None. Both phases (selection reach + faithful-clone preview) built + building green; awaiting
-  live verification in Chrome.
+- None. Selection reach + faithful-clone preview + real-element recording all built and building
+  green; awaiting live verification in Chrome.
 
 ## Next Up
 

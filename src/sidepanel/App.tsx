@@ -1,10 +1,12 @@
 import { CircleAlert, LoaderCircle } from 'lucide-react'
 import { toCaptureStats } from '../lib/history'
+import type { CropRect, SelectedTarget } from '../lib/types'
 import ApiKeyForm from './components/ApiKeyForm'
 import CaptureSummary from './components/CaptureSummary'
 import Header from './components/Header'
 import HistoryList from './components/HistoryList'
 import IdleState from './components/IdleState'
+import RecordingView from './components/RecordingView'
 import ResultView from './components/ResultView'
 import { useInspection } from './useInspection'
 
@@ -19,13 +21,22 @@ export default function App() {
     pending,
     error,
     analysisError,
+    recording,
     startInspect,
     stopInspect,
     selectEntry,
     clearHistory,
+    startRecording,
+    stopRecording,
+    replayOnPage,
   } = useInspection()
 
   const entry = history[viewIndex] ?? null
+  // Recording crops to whichever element is currently shown (live or history).
+  const shownTarget = pending?.target ?? entry?.target ?? null
+  const onStartRecording = () => startRecording(cropFromTarget(shownTarget))
+  const selector = shownTarget?.kind === 'element' ? shownTarget.selector : null
+  const onReplay = selector ? () => replayOnPage(selector) : undefined
 
   return (
     <div className="flex min-h-screen flex-col bg-base font-sans text-primary">
@@ -40,6 +51,12 @@ export default function App() {
               target={pending.target}
               stats={toCaptureStats(pending.payload)}
               thumbnail={pending.thumbnail}
+            />
+            <RecordingView
+              recording={recording}
+              onStart={onStartRecording}
+              onStop={stopRecording}
+              onReplay={onReplay}
             />
             {analysisError && !analysisError.missingKey && (
               <ErrorBanner message={analysisError.reason} />
@@ -69,6 +86,12 @@ export default function App() {
               onClear={clearHistory}
             />
             <CaptureSummary target={entry.target} stats={entry.stats} thumbnail={entry.thumbnail} />
+            <RecordingView
+              recording={recording}
+              onStart={onStartRecording}
+              onStop={stopRecording}
+              onReplay={onReplay}
+            />
             <ResultView result={entry.result} clone={entry.clone} />
           </>
         ) : (
@@ -77,6 +100,20 @@ export default function App() {
       </main>
     </div>
   )
+}
+
+// Element captures crop the recording to the element; viewport captures (and a
+// missing target) record the whole tab.
+function cropFromTarget(target: SelectedTarget | null): CropRect | null {
+  if (!target || target.kind !== 'element') return null
+  return {
+    x: target.rect.x,
+    y: target.rect.y,
+    width: target.rect.width,
+    height: target.rect.height,
+    viewportWidth: target.viewport.width,
+    viewportHeight: target.viewport.height,
+  }
 }
 
 function ErrorBanner({ message }: { message: string }) {

@@ -31,8 +31,20 @@ export interface SelectedTarget {
   rect: { x: number; y: number; width: number; height: number }
   /** devicePixelRatio at capture time — captureVisibleTab renders at this scale. */
   dpr: number
+  /** Viewport size (CSS px) at capture time — maps rect onto a captured frame. */
+  viewport: { width: number; height: number }
   /** Page URL at capture time. */
   url: string
+}
+
+/** Rect (CSS px) + the viewport it was measured in, for cropping a tab frame. */
+export interface CropRect {
+  x: number
+  y: number
+  width: number
+  height: number
+  viewportWidth: number
+  viewportHeight: number
 }
 
 // ---------------------------------------------------------------------------
@@ -130,6 +142,9 @@ export type ToContentMessage =
   // A traversal key relayed from the panel (which holds keyboard focus while the
   // toolbar-opened panel is active, so the page's own keydown never fires).
   | { type: 'INSPECT_KEY'; key: string }
+  // Scroll the element out of view then back, to re-fire scroll-triggered
+  // animations during a recording.
+  | { type: 'REPLAY_SCROLL'; selector: string }
 
 /** Messages the content script emits toward the background worker. */
 export type FromContentMessage =
@@ -153,6 +168,25 @@ export type PanelCommand =
   | { type: 'PANEL_START_INSPECT' }
   | { type: 'PANEL_STOP_INSPECT' }
   | { type: 'PANEL_INSPECT_KEY'; key: string }
+  | { type: 'PANEL_START_RECORD'; crop?: CropRect | null }
+  | { type: 'PANEL_STOP_RECORD' }
+  | { type: 'PANEL_REPLAY_SCROLL'; selector: string }
+
+// ---------------------------------------------------------------------------
+// Screen recording: worker ⇄ offscreen document (holds the MediaRecorder, since
+// a service worker can't). tabCapture streamId is minted in the worker and sent
+// to the offscreen doc, which records and returns a webm data URL.
+// ---------------------------------------------------------------------------
+
+/** Worker → offscreen recorder document. */
+export type WorkerToOffscreen =
+  | { type: 'START_RECORDING'; streamId: string; crop?: CropRect | null }
+  | { type: 'STOP_RECORDING' }
+
+/** Offscreen recorder document → worker. */
+export type OffscreenToWorker =
+  | { type: 'RECORDING_DATA'; dataUrl: string }
+  | { type: 'RECORDING_FAILED'; reason: string }
 
 // ---------------------------------------------------------------------------
 // AI analysis — what Claude returns for a capture.
@@ -217,3 +251,6 @@ export type ToPanelMessage =
   | { type: 'THUMBNAIL_READY'; thumbnail: string }
   | { type: 'ANALYSIS_RESULT'; entry: HistoryEntry }
   | { type: 'ANALYSIS_ERROR'; reason: string; missingKey: boolean }
+  | { type: 'RECORDING_STARTED' }
+  | { type: 'RECORDING_READY'; url: string }
+  | { type: 'RECORDING_ERROR'; reason: string }

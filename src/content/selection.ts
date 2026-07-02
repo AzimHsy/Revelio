@@ -164,6 +164,7 @@ export function describeElement(el: Element): SelectedTarget {
     classes: [...el.classList],
     rect: { x: rect.x, y: rect.y, width: rect.width, height: rect.height },
     dpr: window.devicePixelRatio,
+    viewport: { width: window.innerWidth, height: window.innerHeight },
     url: location.href,
   }
 }

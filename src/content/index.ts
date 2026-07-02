@@ -38,8 +38,25 @@ chrome.runtime.onMessage.addListener((raw: unknown) => {
       // Traversal key relayed from the panel (which has keyboard focus).
       handleKey(msg.key)
       break
+    case 'REPLAY_SCROLL':
+      replayScroll(msg.selector)
+      break
   }
 })
+
+// Re-fire a scroll-triggered animation: jump the element out of view, then
+// smooth-scroll it back into the middle of the viewport.
+function replayScroll(selector: string): void {
+  let el: Element | null = null
+  try {
+    el = document.querySelector(selector)
+  } catch {
+    el = null
+  }
+  if (!el) return
+  window.scrollTo({ top: 0, behavior: 'auto' })
+  setTimeout(() => el?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 150)
+}
 
 // Ctrl+Shift+A: capture the current section. V1 decision: "current section" =
 // the visible viewport bounds (see progress-tracker.md → Architecture Decisions).
@@ -63,6 +80,7 @@ function captureViewport(): SelectedTarget {
     classes: [],
     rect: { x: 0, y: 0, width: window.innerWidth, height: window.innerHeight },
     dpr: window.devicePixelRatio,
+    viewport: { width: window.innerWidth, height: window.innerHeight },
     url: location.href,
   }
 }
