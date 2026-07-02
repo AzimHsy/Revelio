@@ -5,6 +5,17 @@
 /** JSON-safe value — what the serializer guarantees after crossing a world. */
 export type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue }
 
+/**
+ * Self-contained HTML clone of the inspected element (markup + computed styles
+ * baked inline), used to reproduce its real design in the sandbox preview.
+ * `width`/`height` are the element's intrinsic size, for scale-to-fit.
+ */
+export interface ElementClone {
+  html: string
+  width: number
+  height: number
+}
+
 /** Serializable descriptor of what the user selected on the page. */
 export interface SelectedTarget {
   kind: 'element' | 'section'
@@ -116,8 +127,18 @@ export type ToContentMessage = { type: 'START_INSPECT' } | { type: 'STOP_INSPECT
 export type FromContentMessage =
   | { type: 'INSPECT_STARTED' }
   | { type: 'INSPECT_CANCELLED' }
-  | { type: 'ELEMENT_SELECTED'; target: SelectedTarget; payload: RuntimePayload | null }
-  | { type: 'SECTION_CAPTURED'; target: SelectedTarget; payload: RuntimePayload | null }
+  | {
+      type: 'ELEMENT_SELECTED'
+      target: SelectedTarget
+      payload: RuntimePayload | null
+      clone?: ElementClone | null
+    }
+  | {
+      type: 'SECTION_CAPTURED'
+      target: SelectedTarget
+      payload: RuntimePayload | null
+      clone?: ElementClone | null
+    }
 
 /** Commands the side panel sends to the background worker. */
 export type PanelCommand = { type: 'PANEL_START_INSPECT' } | { type: 'PANEL_STOP_INSPECT' }
