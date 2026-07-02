@@ -15,8 +15,11 @@ let emit: Emit | null = null
 // The element currently targeted (highlighted). Hover sets it; the arrow keys
 // walk the DOM from it; Enter/click selects it.
 let current: Element | null = null
-// Last known cursor position — the anchor for z-stack piercing (Unit 2).
+// Last known cursor position — the anchor for z-stack piercing.
 const pointer = { x: 0, y: 0 }
+// Depth into the stack of elements under the cursor (0 = topmost). `[`/`]` step
+// through it so a covering container no longer blocks the element beneath.
+let stackIndex = 0
 
 export function isInspecting(): boolean {
   return active
@@ -58,6 +61,8 @@ function setCurrent(el: Element | null): void {
 function onMouseMove(event: MouseEvent): void {
   pointer.x = event.clientX
   pointer.y = event.clientY
+  // A fresh cursor position restarts z-stack cycling from the top.
+  stackIndex = 0
 }
 
 function onMouseOver(event: MouseEvent): void {
@@ -91,7 +96,26 @@ function onKeyDown(event: KeyboardEvent): void {
     case 'ArrowRight':
       stop(event, () => traverse((el) => el.nextElementSibling))
       break
+    // Pierce the z-stack: reach elements stacked under the cursor (past a
+    // covering container). `]`/PageDown go deeper, `[`/PageUp back toward the top.
+    case ']':
+    case 'PageDown':
+      stop(event, () => cycleStack(1))
+      break
+    case '[':
+    case 'PageUp':
+      stop(event, () => cycleStack(-1))
+      break
   }
+}
+
+function cycleStack(dir: 1 | -1): void {
+  const stack = document
+    .elementsFromPoint(pointer.x, pointer.y)
+    .filter((el) => el.id !== 'revelio-overlay')
+  if (stack.length === 0) return
+  stackIndex = Math.max(0, Math.min(stack.length - 1, stackIndex + dir))
+  setCurrent(stack[stackIndex])
 }
 
 // Consume the event (so arrows don't scroll the page / Enter doesn't submit)
