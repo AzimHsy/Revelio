@@ -236,9 +236,27 @@ Update this file after every meaningful implementation change.
   - Generated code executes ONLY inside the sandbox (opaque origin, no extension APIs,
     network-blocked) — it cannot reach the panel, the inspected page, the key, or storage.
 
+- **Selection reach (Phase A)** — you couldn't inspect components hidden under blocking
+  containers (overlays, full-bleed `<a>` wrappers) because selection used `event.target`
+  (topmost hit-tested node). Now selection is a **steerable current-target model**.
+  - `src/content/selection.ts` — holds `current`/`pointer`; hover still sets the default
+    target, but the keyboard refines it while inspecting: **↑** parent, **↓** first child,
+    **←/→** siblings, **Enter**/click selects, **Escape** cancels. **`[` / `]`** (and
+    PageUp/PageDown) cycle `document.elementsFromPoint(cursor)` to reach elements **under**
+    a blocker (z-stack piercing); moving the mouse resets the stack index. Arrow/bracket
+    keys `preventDefault` so the page doesn't scroll.
+  - `src/content/overlay.ts` — the highlight box now carries a **DevTools-style label**
+    (tag`#id`.class · W×H) so you see exactly what's targeted as you traverse.
+  - `src/sidepanel/components/IdleState.tsx` — documents the new keys (added a `Kbd` helper).
+  - `npm run build` green.
+
 ## In Progress
 
-- None. Both preview units built + building green; awaiting live verification in Chrome.
+- **Faithful-clone preview (Phase B)** — replacing the abstract 6-box demo stage with a
+  reproduction of the actual inspected element (real markup + baked computed CSS), so the
+  preview looks like what you inspected. Unit 3 (serialize element) in progress; Units 4-5
+  (render clone in sandbox + placeholders + CSP; prompt animates real selectors) next.
+  See `.claude/plans/is-it-possible-if-warm-cloud.md`.
 
 ## Next Up
 
