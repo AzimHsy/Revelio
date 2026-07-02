@@ -27,11 +27,18 @@ Rules for the PREVIEW code (this runs live in a sandbox, so it MUST be self-cont
 - Target ONLY \`.demo-stage\` and \`.demo-item\` (e.g. gsap.from(".demo-item", { ... })). Do not create,
   query, or assume any other elements, selectors, images, or text.
 - Use CORE gsap ONLY: gsap.to/from/fromTo/timeline and stagger. NO plugins — ScrollTrigger, SplitText,
-  and gsap.registerPlugin are NOT available and will throw. Reproduce scroll-driven effects as an
-  auto-playing timeline; reproduce text/line effects by staggering the six .demo-item blocks as if they
-  were lines or words.
-- Make it loop or feel alive (e.g. repeat: -1, yoyo, or a repeating timeline) so the user sees the motion.
-- Do not reference window, document scroll, fetch, or any external resource.
+  and gsap.registerPlugin are NOT available and will throw. Reproduce text/line effects by staggering
+  the six .demo-item blocks as if they were lines or words.
+- CRITICAL — the preview must AUTO-PLAY with NO user interaction. There is no mouse, hover, click,
+  focus, drag, or scroll in the sandbox. NEVER add event listeners (addEventListener, onmouseenter,
+  onclick, etc.) and NEVER leave a timeline paused waiting for one — it would just sit blank. For any
+  interaction- or scroll-triggered technique (hover swaps, click reveals, scroll fade-ins), DEMONSTRATE
+  it as an automatic loop: play the "in" state, hold briefly, play the "out" state, and repeat
+  (e.g. a timeline with repeat: -1, or repeat: -1 + yoyo). Simulate the trigger on a timer, do not wait
+  for it.
+- NEVER end in an invisible state. If you start items hidden (opacity 0, scaled/translated away), the
+  animation MUST bring them back to fully visible within the loop so the stage is never blank.
+- Do not reference window, document, fetch, or any external resource.
 
 Respond in EXACTLY this plain-text format. Put each literal section marker on its own line. Do NOT \
 use JSON, markdown headings, or code fences. Emit the sections strictly in this order:
