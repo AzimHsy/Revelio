@@ -8,10 +8,16 @@ import {
   isSplitTextPresent,
   type Scope,
 } from './gsap'
+import { collectInstrumented, installInstrumentation } from './instrument'
 
 // MAIN-world entry. Sits passive and answers EXTRACT requests from the
 // content script over window.postMessage. Never talks to chrome.* APIs and
 // never sees the API key (architecture.md → invariants 1–4).
+
+// Install the GSAP creation-time hook FIRST, synchronously on load. The MAIN
+// script runs at document_start (manifest), so this beats the page's own GSAP
+// calls and captures the original vars of tweens that finish before inspection.
+installInstrumentation()
 
 window.addEventListener('message', (event: MessageEvent) => {
   if (event.source !== window) return
@@ -66,5 +72,7 @@ function extract(target: SelectedTarget): RuntimePayload {
     timelines: collectTimelines(scope),
     scrollTriggers: collectScrollTriggers(scope),
     cssAnimations: collectCssAnimations(scope),
+    // Creation-time records whose targets match the selection (enhancement 2).
+    instrumented: collectInstrumented(scope),
   }
 }

@@ -26,10 +26,13 @@ export default defineManifest({
     },
     {
       // MAIN-world extractor: the only code allowed to read window.gsap /
-      // ScrollTrigger (architecture.md → invariant 1).
+      // ScrollTrigger (architecture.md → invariant 1). Runs at document_start so
+      // the load-time instrumentation hook (enhancement 2) installs its trap
+      // BEFORE the page's GSAP calls run; the EXTRACT listener is still passive
+      // until asked, so the earlier timing is safe.
       js: ['src/injected/main.ts'],
       matches: ['http://*/*', 'https://*/*'],
-      run_at: 'document_idle',
+      run_at: 'document_start',
       world: 'MAIN',
     },
   ],

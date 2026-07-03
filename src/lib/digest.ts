@@ -1,5 +1,6 @@
 import type {
   CssAnimationData,
+  InstrumentedRecord,
   JsonValue,
   RuntimePayload,
   TimelineData,
@@ -20,6 +21,7 @@ const SAMPLE = {
   timelineChildren: 5,
   scrollTriggers: 5,
   cssAnimations: 5,
+  instrumented: 12,
   targetsPerTween: 6,
   keyframes: 3,
 }
@@ -34,6 +36,12 @@ export interface PayloadDigest {
   timelines: TimelineData[]
   scrollTriggers: RuntimePayload['scrollTriggers']
   cssAnimations: CssAnimationData[]
+  /**
+   * Creation-time GSAP calls captured by the load-time hook (enhancement 2).
+   * These are the ORIGINAL vars the page passed in — treat their values as
+   * SOURCE-grade truth (label them SOURCE), even for tweens that had finished.
+   */
+  instrumented: InstrumentedRecord[]
 }
 
 export function digestForPrompt(payload: RuntimePayload): PayloadDigest {
@@ -57,6 +65,7 @@ export function digestForPrompt(payload: RuntimePayload): PayloadDigest {
       ...animation,
       keyframes: trimKeyframes(animation.keyframes),
     })),
+    instrumented: (payload.instrumented ?? []).slice(0, SAMPLE.instrumented),
   }
 }
 

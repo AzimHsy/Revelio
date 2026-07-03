@@ -97,6 +97,24 @@ export interface CssAnimationData {
   keyframes: JsonValue | null
 }
 
+/**
+ * A GSAP call captured at CREATION time by the load-time instrumentation hook
+ * (enhancement 2), before its tween could finish and be disposed. Unlike the
+ * snapshot readers (which see only live tweens), these carry the ORIGINAL vars
+ * the page passed in — SOURCE-grade truth even for a load-in reveal that already
+ * ended by the time the user inspected.
+ */
+export interface InstrumentedRecord {
+  /** e.g. "gsap.from" | "timeline.to" | "ScrollTrigger.create". */
+  method: string
+  /** Target descriptors (tag#id.class or the original selector string). */
+  targets: string[]
+  /** The original vars object the page passed (serialized). */
+  vars: Record<string, JsonValue>
+  /** Creation time (page performance.now-ish epoch ms). */
+  createdAt: number
+}
+
 export interface RuntimePayload {
   gsapVersion: string | null
   splitTextPresent: boolean
@@ -106,6 +124,12 @@ export interface RuntimePayload {
   timelines: TimelineData[]
   scrollTriggers: ScrollTriggerData[]
   cssAnimations: CssAnimationData[]
+  /**
+   * Creation-time GSAP calls whose targets match the selection, captured by the
+   * document_start instrumentation hook. Empty when the page never exposed GSAP
+   * on `window` (ESM-bundled) — the snapshot readers above are the fallback.
+   */
+  instrumented: InstrumentedRecord[]
 }
 
 // ---------------------------------------------------------------------------

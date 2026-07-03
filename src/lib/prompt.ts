@@ -125,7 +125,11 @@ export function buildUserPrompt(
   return `Identify and recreate the animation running on ${subject} of ${target.url}.
 
 Runtime animation data extracted from the live page. This is a representative sample; the \
-\`counts\` field gives the true totals behind the sample:
+\`counts\` field gives the true totals behind the sample. The \`instrumented\` array (when present) \
+holds GSAP calls captured at CREATION time — the original vars the page passed, including for load-in \
+tweens that had already finished; treat those values as SOURCE-grade truth (label them SOURCE). If \
+\`instrumented\` is empty, the page never exposed GSAP on \`window\` (e.g. ESM-bundled) and you are \
+working from the live snapshot alone — say so and label inferred values honestly:
 
 ${JSON.stringify(digestForPrompt(payload))}
 

@@ -4,11 +4,14 @@ Update this file after every meaningful implementation change.
 
 ## Current Phase
 
-- **V1 pipeline complete + streaming + previews** — inspect/capture → MAIN-world
-  extraction → Claude analysis (streamed) → concept/explanation/code/parameters render
-  progressively, plus a screenshot thumbnail of the inspected element and a live
-  sandboxed animation preview. API key onboarding included. V1 verified live on gsap.com;
-  the two preview units await a live sanity-check. `npm run build` green.
+- **V1 pipeline complete + streaming + previews + identification/precision enhancements** —
+  inspect/capture → MAIN-world extraction → Claude analysis (streamed) →
+  concept/explanation/code/parameters render progressively, plus a screenshot thumbnail of the
+  inspected element and a live sandboxed animation preview. API key onboarding included. V1 verified
+  live on gsap.com. **Enhancement 1** (prompt-only: controlled concept vocabulary, honesty labels
+  SOURCE/PARTIAL/GUESS, interaction-model-first, capture-every-state, GSAP grounding) and
+  **Enhancement 2** (document_start GSAP creation-time instrumentation → recover finished load-in
+  reveals as SOURCE truth) both built; `npm run build` + `tsc --noEmit` green. All await a live pass.
 
 ## Current Goal
 
@@ -329,16 +332,49 @@ Update this file after every meaningful implementation change.
     (SOURCE=success, PARTIAL=accent, GUESS=muted) with a tooltip. Old entries → GUESS chip.
   - `npm run build` green.
 
+- **Enhancement 2 — load-time GSAP instrumentation (precision)** — the snapshot readers only see
+  LIVE tweens, so a load-in reveal is already disposed by the time you inspect. Now a document_start
+  hook records GSAP calls at CREATION time and merges the ones matching the selection into the payload
+  as SOURCE-grade truth (see `context/revelio-enhancements.md`).
+  - `src/injected/instrument.ts` (new) — `installInstrumentation()` traps `window.gsap` /
+    `window.ScrollTrigger` via a `configurable` get/set `defineProperty` (handles both the
+    already-present and assigned-later cases; the setter may swap in a replacement). Wraps
+    `gsap.to/from/fromTo/set`, `gsap.timeline` (+ the returned timeline's own `to/from/fromTo/set`,
+    per-instance so the shared prototype is untouched), and `ScrollTrigger.create` in place +
+    `new ScrollTrigger()` via a `Proxy` construct trap (statics/instanceof forward through). Every
+    wrapper **records then calls through unchanged** — never alters behaviour; all guarded so a bad
+    page can't break. Registry caps at 300 records; `fromTo` merges from+to vars so timing isn't lost.
+  - `collectInstrumented(scope)` re-resolves each record's selector strings against the now-grown DOM,
+    unions with live element refs, and returns records whose targets match the selection (self /
+    ancestor / descendant, or viewport intersection), serialized via the existing `toJsonSafe` (cap 40).
+  - `src/injected/main.ts` — calls `installInstrumentation()` synchronously on load (before the EXTRACT
+    listener), and merges `collectInstrumented(scope)` into the `RuntimePayload`.
+  - `src/manifest.config.ts` — MAIN-world injected script moved to `run_at: 'document_start'` so the
+    trap beats the page's GSAP calls (the EXTRACT listener stays passive, so earlier timing is safe).
+  - `src/lib/types.ts` — `InstrumentedRecord { method, targets[], vars, createdAt }`;
+    `RuntimePayload.instrumented`.
+  - `src/lib/digest.ts` — digest now carries up to 12 instrumented records (so the model actually sees
+    them); `src/lib/prompt.ts` tells the model they're creation-time SOURCE truth (label SOURCE), and to
+    say so + label honestly when `instrumented` is empty (ESM-bundled GSAP never on `window`).
+  - Module-placement note: the registry + collector live in `instrument.ts` (cohesive with the hook)
+    rather than in `gsap.ts` as the brief sketched — same behaviour, cleaner boundary.
+  - `npm run build` + `tsc --noEmit` green.
+
 ## In Progress
 
-- None. Selection reach + faithful-clone preview + real-element recording all built and building
-  green; awaiting live verification in Chrome. Enhancement 1 (identification quality) done + green.
+- None. Selection reach + faithful-clone preview + real-element recording built + green. Enhancements
+  1 (identification quality) and 2 (load-time instrumentation) done + green. All await a live Chrome pass.
 
 ## Next Up
 
-0. **Enhancement 2 — load-time GSAP instrumentation** (next; see `context/revelio-enhancements.md`):
-   hook `window.gsap` creation APIs at `document_start` to record original vars for finished one-shot
-   tweens, merged into the payload as SOURCE-grade truth.
+0. **Live Chrome pass for Enhancements 1 + 2** (reload the extension card after building):
+   - **E1**: on a gsap.com capture — concept is a slug from the vocabulary; the explanation opens
+     `Interaction model: …`; every parameter shows a SOURCE/PARTIAL/GUESS chip; an old (3-field)
+     history entry still renders (its params show GUESS chips).
+   - **E2**: inspect an element with a load-in reveal that has ALREADY finished — the parameters should
+     now report the original `stagger`/`ease`/`duration` as **SOURCE** (not a guess). Confirm a site
+     with no `window.gsap` still returns a snapshot-based answer, and that instrumented pages animate
+     completely normally (no behaviour change from the wrappers).
 1. Manual verification on gsap.com (**reload the extension card after building**):
    - **Selection reach**: hover a component sitting under an overlay/link wrapper → use ↑↓←→
      to walk the DOM and `[`/`]` to reach the element beneath the blocker (the overlay label
