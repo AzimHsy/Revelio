@@ -90,11 +90,20 @@ async function startRecording(crop: CropRect | null): Promise<void> {
     sendToOffscreen({ type: 'START_RECORDING', streamId, crop })
     broadcastToPanel({ type: 'RECORDING_STARTED' })
   } catch (error) {
-    broadcastToPanel({
-      type: 'RECORDING_ERROR',
-      reason: error instanceof Error ? error.message : 'Could not start recording.',
-    })
+    broadcastToPanel({ type: 'RECORDING_ERROR', reason: recordErrorReason(error) })
   }
+}
+
+// tabCapture needs the tab's activeTab grant, which Chrome hands out only when
+// the extension is INVOKED on that tab — and drops on every reload/tab switch
+// (the side panel itself persists, which is why inspect/analyze still work but
+// capture doesn't). Turn Chrome's raw "has not been invoked" error into a fix.
+function recordErrorReason(error: unknown): string {
+  const message = error instanceof Error ? error.message : String(error)
+  if (/invoked|activeTab|not been granted/i.test(message)) {
+    return 'Click the Revelio toolbar icon on this page to enable capture, then press Record. (Reloading the page clears it.)'
+  }
+  return message || 'Could not start recording.'
 }
 
 async function ensureOffscreen(): Promise<void> {

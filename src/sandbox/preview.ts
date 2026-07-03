@@ -30,29 +30,46 @@ function buildDemoStage(): void {
 // Faithful stage: the real inspected element (markup + baked computed styles),
 // scaled to fit the small preview viewport. The clone keeps its own classes/ids
 // so the generated code targets real selectors.
+//
+// `transform: scale()` does NOT shrink an element's layout box, so scaling the
+// clone directly leaves a full-size footprint that the flex container centers
+// wrong (the visible content drifts low/off — a tall swiper/card is the classic
+// case). Fix: an OUTER box sized to the SCALED footprint (so flex centers it
+// correctly in both axes) holding an INNER box at the element's true size,
+// scaled from its top-left corner.
 function buildCloneStage(clone: ClonePayload): void {
   stage.innerHTML = ''
-  const scaler = document.createElement('div')
-  scaler.style.flex = '0 0 auto'
-  scaler.innerHTML = clone.html
+
+  const w = clone.width > 0 ? clone.width : 0
+  const h = clone.height > 0 ? clone.height : 0
+  // Fit inside the stage's content box (padding already excluded); never scale up.
+  const availW = stage.clientWidth || window.innerWidth
+  const availH = stage.clientHeight || window.innerHeight
+  const scale = w > 0 && h > 0 ? Math.min(1, availW / w, availH / h) : 1
+
+  const box = document.createElement('div')
+  box.style.flex = '0 0 auto'
+  box.style.position = 'relative'
+  box.style.overflow = 'hidden'
+  box.style.width = w > 0 ? `${w * scale}px` : 'auto'
+  box.style.height = h > 0 ? `${h * scale}px` : 'auto'
+
+  const inner = document.createElement('div')
+  inner.style.transformOrigin = 'top left'
+  inner.style.transform = `scale(${scale})`
+  if (w > 0) inner.style.width = `${w}px`
+  if (h > 0) inner.style.height = `${h}px`
+  inner.innerHTML = clone.html
 
   // Defense-in-depth: the frame is already sandboxed, but never run injected
   // scripts; and swap any image that fails to load for a neutral placeholder.
-  scaler.querySelectorAll('script').forEach((s) => s.remove())
-  scaler.querySelectorAll('img').forEach((img) => {
+  inner.querySelectorAll('script').forEach((s) => s.remove())
+  inner.querySelectorAll('img').forEach((img) => {
     img.addEventListener('error', () => placeholderImage(img as HTMLImageElement), { once: true })
   })
 
-  stage.appendChild(scaler)
-
-  // Scale down to fit if the element is larger than the viewport (never scale up).
-  const pad = 24
-  const scale =
-    clone.width > 0 && clone.height > 0
-      ? Math.min(1, (window.innerWidth - pad) / clone.width, (window.innerHeight - pad) / clone.height)
-      : 1
-  scaler.style.transform = `scale(${scale})`
-  scaler.style.transformOrigin = 'center center'
+  box.appendChild(inner)
+  stage.appendChild(box)
 }
 
 function placeholderImage(img: HTMLImageElement): void {

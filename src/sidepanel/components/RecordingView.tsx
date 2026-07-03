@@ -46,6 +46,13 @@ export default function RecordingView({
         )}
       </div>
 
+      {!recording.isRecording && !recording.url && (
+        <p className="text-[11px] leading-relaxed text-muted">
+          Tip: if Record fails, click the Revelio toolbar icon on the page first to enable capture — a
+          page reload clears it.
+        </p>
+      )}
+
       {recording.isRecording && (
         <div className="flex flex-col gap-1.5">
           <p className="flex items-center gap-1.5 text-xs text-muted">

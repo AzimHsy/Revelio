@@ -360,10 +360,26 @@ Update this file after every meaningful implementation change.
     rather than in `gsap.ts` as the brief sketched — same behaviour, cleaner boundary.
   - `npm run build` + `tsc --noEmit` green.
 
+- **Live-test fixes (truekindskincare.com pass)** — E1/E2 verified working live (concept slug
+  `hover-scale`, `Interaction model: hover.`, honest "no GSAP instrumentation found → inferred" note on
+  an ESM-bundled site). Two pre-existing feature bugs surfaced + fixed:
+  - **Faithful-clone preview mis-positioned** (`src/sandbox/preview.ts`) — `transform: scale()` left a
+    full-size layout footprint, so the flex container centered the element wrong (content drifted low).
+    Rewrote `buildCloneStage` with the scaled-footprint technique: an outer box sized to `dim × scale`
+    holding the true-size element scaled from `top left`, fit to `stage.clientWidth/Height`. Now centers
+    correctly in both axes.
+  - **Recording failed with "Extension has not been invoked"** (`src/background/worker.ts` +
+    `RecordingView.tsx`) — `tabCapture` needs the tab's activeTab grant, which Chrome drops on every
+    reload/tab-switch (panel persists, so inspect/analyze still work but capture doesn't). Not a code
+    defect — a Chrome permission-gesture constraint. Turned the raw error into an actionable message
+    ("click the Revelio toolbar icon on this page, then Record; a reload clears it") + added a standing
+    tip under the Record button. Operational fix: re-invoke via the toolbar icon after any page reload.
+
 ## In Progress
 
 - None. Selection reach + faithful-clone preview + real-element recording built + green. Enhancements
-  1 (identification quality) and 2 (load-time instrumentation) done + green. All await a live Chrome pass.
+  1 (identification quality) and 2 (load-time instrumentation) done + green; verified live. Preview
+  centering + recording-invocation guidance fixed. `npm run build` green.
 
 ## Next Up
 
