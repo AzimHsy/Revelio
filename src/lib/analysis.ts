@@ -1,4 +1,4 @@
-import type { AnalysisParameter, AnalysisResult } from './types'
+import type { AnalysisParameter, AnalysisResult, ParameterLabel } from './types'
 
 // Parses Claude's delimiter-sectioned response into an AnalysisResult. Written
 // to tolerate PARTIAL input so the panel can render the answer as it streams
@@ -44,9 +44,15 @@ function stripFences(code: string): string {
   return (fenced?.[1] ?? code).trim()
 }
 
-// One parameter per line: "name | value | description". Split on the first two
-// separators so descriptions may themselves contain " | ". Partial trailing
-// lines (still streaming) are skipped until they have at least name + value.
+const PARAMETER_LABELS = new Set<ParameterLabel>(['SOURCE', 'PARTIAL', 'GUESS'])
+
+// One parameter per line: "name | value | label | description" (enhancement 1).
+// The third field is only treated as a label when it is one of the known honesty
+// labels — otherwise it's part of the description. That distinguishes the new
+// 4-field format from the old 3-field "name | value | description" (old history)
+// AND from a still-streaming line whose label hasn't arrived yet. Unlabelled →
+// GUESS. Descriptions may contain " | ", so join the remaining fields back.
+// Partial trailing lines are skipped until they have at least name + value.
 function parseParameters(block: string): AnalysisParameter[] {
   return block
     .split('\n')
@@ -55,6 +61,15 @@ function parseParameters(block: string): AnalysisParameter[] {
     .flatMap((line) => {
       const parts = line.split(' | ')
       if (parts.length < 2) return []
-      return [{ name: parts[0], value: parts[1], description: parts.slice(2).join(' | ') }]
+      const maybeLabel = (parts[2] ?? '').trim().toUpperCase() as ParameterLabel
+      const labelled = PARAMETER_LABELS.has(maybeLabel)
+      return [
+        {
+          name: parts[0],
+          value: parts[1],
+          label: labelled ? maybeLabel : 'GUESS',
+          description: parts.slice(labelled ? 3 : 2).join(' | '),
+        },
+      ]
     })
 }

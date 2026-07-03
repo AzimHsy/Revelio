@@ -311,13 +311,34 @@ Update this file after every meaningful implementation change.
   - **Honest limits**: element must be on-screen while recording; CSS `:hover` needs the user to
     hover it live (synthetic events can't trigger `:hover`). Complements the reconstructed preview.
 
+- **Enhancement 1 — identification quality (prompt-only)** — sharper, more honest, more consistent
+  output with no architecture change (see `context/revelio-enhancements.md`).
+  - `src/lib/prompt.ts` — `CONCEPT_VOCABULARY` (23 kebab-case slugs) exported + embedded: the model
+    must pick the concept from the list, only coining ONE new `(new)`-marked slug as a last resort.
+    Added **interaction-model-first** (EXPLANATION must open `Interaction model: scroll.` etc. — the
+    costliest thing to get wrong), **honesty labels** (every parameter tagged SOURCE / PARTIAL /
+    GUESS; never present a guess as certain), **capture-every-state** (encode before+after for
+    triggered anims), and **GSAP best-practice grounding**. PARAMETERS line format
+    `name | value | description` → `name | value | label | description`.
+  - `src/lib/types.ts` — `ParameterLabel = 'SOURCE'|'PARTIAL'|'GUESS'`; `AnalysisParameter.label`.
+  - `src/lib/analysis.ts` — `parseParameters` splits 4 fields. Disambiguates by checking whether the
+    3rd field is a known label: if so it's the label; otherwise it's the description with label
+    `GUESS` — so old 3-field history AND still-streaming lines whose label hasn't arrived both degrade
+    gracefully. `isComplete` unchanged.
+  - `src/sidepanel/components/ResultView.tsx` — `LabelChip` renders the honesty label per parameter
+    (SOURCE=success, PARTIAL=accent, GUESS=muted) with a tooltip. Old entries → GUESS chip.
+  - `npm run build` green.
+
 ## In Progress
 
 - None. Selection reach + faithful-clone preview + real-element recording all built and building
-  green; awaiting live verification in Chrome.
+  green; awaiting live verification in Chrome. Enhancement 1 (identification quality) done + green.
 
 ## Next Up
 
+0. **Enhancement 2 — load-time GSAP instrumentation** (next; see `context/revelio-enhancements.md`):
+   hook `window.gsap` creation APIs at `document_start` to record original vars for finished one-shot
+   tweens, merged into the payload as SOURCE-grade truth.
 1. Manual verification on gsap.com (**reload the extension card after building**):
    - **Selection reach**: hover a component sitting under an overlay/link wrapper → use ↑↓←→
      to walk the DOM and `[`/`]` to reach the element beneath the blocker (the overlay label

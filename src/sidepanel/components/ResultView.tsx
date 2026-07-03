@@ -1,5 +1,5 @@
 import { Sparkles } from 'lucide-react'
-import type { AnalysisResult, ElementClone } from '../../lib/types'
+import type { AnalysisResult, ElementClone, ParameterLabel } from '../../lib/types'
 import CodeBlock from './CodeBlock'
 import PreviewStage from './PreviewStage'
 
@@ -73,9 +73,12 @@ export default function ResultView({
           <ul className="flex flex-col gap-1.5">
             {result.parameters.map((param) => (
               <li key={param.name} className="rounded-md bg-surface p-2.5">
-                <p className="font-mono text-xs text-primary">
-                  {param.name}
-                  {param.value && <span className="text-accent"> = {param.value}</span>}
+                <p className="flex items-center gap-2 font-mono text-xs text-primary">
+                  <span>
+                    {param.name}
+                    {param.value && <span className="text-accent"> = {param.value}</span>}
+                  </span>
+                  <LabelChip label={param.label} />
                 </p>
                 <p className="mt-0.5 text-xs leading-relaxed text-muted">{param.description}</p>
               </li>
@@ -95,4 +98,34 @@ function SectionLabel({ children }: { children: string }) {
 
 function Caret() {
   return <span className="ml-0.5 inline-block h-3 w-1.5 animate-pulse bg-accent align-middle" />
+}
+
+// Honesty label for a parameter's value (enhancement 1): SOURCE = read from the
+// runtime capture, GUESS = inferred, PARTIAL = in between. Colored so trustworthy
+// values (SOURCE) read as confident and guesses read as tentative.
+const LABEL_STYLES: Record<ParameterLabel, { className: string; title: string }> = {
+  SOURCE: {
+    className: 'border-success/40 text-success',
+    title: 'Read from the captured runtime data',
+  },
+  PARTIAL: {
+    className: 'border-accent/40 text-accent',
+    title: 'Partially inferred from the runtime data',
+  },
+  GUESS: {
+    className: 'border-line text-muted',
+    title: 'Inferred — no runtime value backed this',
+  },
+}
+
+function LabelChip({ label }: { label: ParameterLabel }) {
+  const style = LABEL_STYLES[label] ?? LABEL_STYLES.GUESS
+  return (
+    <span
+      title={style.title}
+      className={`ml-auto shrink-0 rounded-md border px-1.5 py-0.5 text-[9px] font-medium tracking-wider uppercase ${style.className}`}
+    >
+      {label}
+    </span>
+  )
 }

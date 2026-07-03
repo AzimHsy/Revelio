@@ -192,9 +192,19 @@ export type OffscreenToWorker =
 // AI analysis — what Claude returns for a capture.
 // ---------------------------------------------------------------------------
 
+/**
+ * Honesty label for a parameter's value (enhancement 1):
+ * - `SOURCE`  — read directly from the runtime capture (trustworthy).
+ * - `PARTIAL` — partially inferred (some runtime signal, some inference).
+ * - `GUESS`   — inferred; no runtime value backed it.
+ * Old history entries (3-field params) have no label and default to `GUESS`.
+ */
+export type ParameterLabel = 'SOURCE' | 'PARTIAL' | 'GUESS'
+
 export interface AnalysisParameter {
   name: string
   value: string
+  label: ParameterLabel
   description: string
 }
 
