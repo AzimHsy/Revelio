@@ -70,6 +70,18 @@ chrome.runtime.onMessage.addListener((raw: unknown, sender) => {
     case 'PANEL_REPLAY_SCROLL':
       void sendToActiveTab({ type: 'REPLAY_SCROLL', selector: command.selector })
       break
+    case 'PANEL_SCAN':
+      // Data-driven capture (V2 Unit 2). The content script does the MAIN-world
+      // round trip and replies with SCAN_RESULT, which is relayed as-is above —
+      // deliberately NOT auto-analyzed (scan makes zero API calls).
+      void sendToActiveTab({ type: 'SCAN' })
+      break
+    case 'PANEL_HIGHLIGHT_TARGET':
+      void sendToActiveTab({ type: 'HIGHLIGHT_TARGET', selector: command.selector })
+      break
+    case 'PANEL_CLEAR_HIGHLIGHT':
+      void sendToActiveTab({ type: 'CLEAR_HIGHLIGHT' })
+      break
   }
 })
 

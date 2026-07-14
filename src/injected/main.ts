@@ -1,6 +1,5 @@
 import {
   BRIDGE_SOURCE,
-  type ExtractRequest,
   type ExtractResponse,
   type RuntimePayload,
   type ScanResponse,
@@ -29,7 +28,13 @@ installInstrumentation()
 
 window.addEventListener('message', (event: MessageEvent) => {
   if (event.source !== window) return
-  const data = event.data as Partial<ExtractRequest> | null
+  const data = event.data as {
+    source?: unknown
+    direction?: unknown
+    type?: unknown
+    requestId?: unknown
+    target?: SelectedTarget
+  } | null
   if (
     !data ||
     data.source !== BRIDGE_SOURCE ||

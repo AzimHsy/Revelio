@@ -7,7 +7,7 @@ Update this file after every meaningful implementation change.
 - **V2 — Vocabulary Bridge (branch `v2-vocabulary-bridge`)** — repositioning V1 from a
   click-first code generator into a scan-and-list, prompt-first, on-demand-AI tool. Single
   source of truth: `context/revelio-enhancements.md` (rev 2) + `context/current-architecture.md`.
-  **Units 0–1 DONE** (doc sync; hover candidates) — see the V2 entries under Completed. Next: Unit 2 (scan & list).
+  **Units 0–2 DONE** (doc sync; hover candidates; scan & list) — see the V2 entries under Completed. Next: Unit 3 (rule classifier + template brief).
 - **V1 pipeline complete + streaming + previews + identification/precision enhancements** —
   inspect/capture → MAIN-world extraction → Claude analysis (streamed) →
   concept/explanation/code/parameters render progressively, plus a screenshot thumbnail of the
@@ -421,23 +421,54 @@ Update this file after every meaningful implementation change.
   - Not wired to the digest/prompt/UI this unit (per brief scope) — hover candidates ride the EXTRACT
     payload only, for Unit 2's scan to build on. `tsc --noEmit && vite build` green.
 
+- **V2 · Unit 2 — Scan & list (new primary capture)** — selection from data, not hit-testing.
+  `scan()` lists every animation the page exposes; the user picks from a list. Pure JS, **zero API
+  calls**, never auto-analyzed. First multi-world unit of V2 (injected + content + background + sidepanel).
+  - `src/injected/scan.ts` (new) — `scan()` merges into one deduped `ScanItem[]` (cap 40, viewport
+    scope): instrumented registry (`registry`) → live tweens/timelines/ScrollTriggers (`live`) →
+    CSS animations/transitions (`css`) → Unit 1 hover candidates (`hover?`), registry first so
+    SOURCE-grade rows top the list. `guessKind()` = a cheap pre-classifier badge (pin→pinned scroll,
+    scrub/scrollTrigger→scroll, stagger, clip-path, from→reveal); the real classifier is Unit 3.
+    Each item carries a `ScanRecord` (source/method/targets/vars + optional ScrollTrigger/CSS) so
+    Unit 3 has the evidence.
+  - `src/lib/types.ts` — `ScanSource`, `ScanRecord`, `ScanItem`, bridge `ScanRequest`/`ScanResponse`;
+    message additions: `SCAN`/`HIGHLIGHT_TARGET`/`CLEAR_HIGHLIGHT` (ToContent), `SCAN_RESULT`
+    (FromContent), `PANEL_SCAN`/`PANEL_HIGHLIGHT_TARGET`/`PANEL_CLEAR_HIGHLIGHT` (PanelCommand).
+  - `src/injected/main.ts` — the bridge listener now dispatches EXTRACT **and** SCAN; `handleScan()`
+    runs `scan()` and posts `SCAN_RESULT` (same requestId/timeout pattern as EXTRACT).
+  - `src/content/bridge.ts` — `requestScan()` (mirrors `requestExtraction`; `[]` on timeout/error).
+  - `src/content/index.ts` — routes `SCAN` (bridge round-trip → `SCAN_RESULT` up), and
+    `HIGHLIGHT_TARGET`/`CLEAR_HIGHLIGHT` reuse `overlay.ts` (`showOverlay`/`hideOverlay`) to flash a
+    scanned element on row hover; guarded so it never stomps the inspect overlay (`isInspecting()`).
+  - `src/background/worker.ts` — routes `PANEL_SCAN`→`SCAN` and the highlight commands to the active
+    tab. `SCAN_RESULT` rides the existing content→panel relay and is **not** in the analyze branch,
+    so scanning stays zero-API by construction.
+  - `src/sidepanel/useInspection.ts` — `scanItems`/`scanning`/`selectedScanId` state; `SCAN_RESULT`
+    handler; `scanPage`/`selectScanItem`/`highlightTarget`/`clearHighlight` actions.
+  - `src/sidepanel/components/AnimationList.tsx` (new) — Scan/Re-scan button + one row per item
+    (target label + kind badge + source badge; `hover?` rows say "hover it on the page to capture the
+    real tween"). Row hover → highlight on page; row click → select (Unit 3 turns a selection into a
+    brief). `App.tsx` renders it above history/idle; click-to-inspect stays as the secondary path.
+  - Row click is selection-only this unit (no brief/network yet — that's Unit 3). `tsc --noEmit &&
+    vite build` green (188 modules).
+
 ## In Progress
 
-- None. V2 Unit 1 (hover candidates) complete + green. Awaiting a live Chrome pass (see Unit 1 accept
-  criteria below) and Azim's go for **Unit 2 — Scan & list**.
+- None. V2 Unit 2 (scan & list) complete + green. Awaiting a live Chrome pass (accept criteria below)
+  and Azim's go for **Unit 3 — Rule classifier + template brief**.
 
-### Unit 1 — live accept check (reload the extension card after building)
-- On a site with a GSAP `mouseenter` button, the candidate appears in the payload after load
-  **without hovering** (listener trap fired at registration time).
-- Hovering that element once puts the real tween in the instrumented registry (existing E2 path).
-- A page with cross-origin stylesheets doesn't throw (CSS read skips them silently).
+### Live accept checks (reload the extension card after building)
+- **Unit 2** — on gsap.com, Scan lists animations with sensible targets incl. a registry-only
+  (finished) one; hovering a row highlights that element on the page; the scan makes **zero** network
+  calls; a `hover?` candidate upgrades to a real registry/live item after one live hover + Re-scan.
+- **Unit 1** — a GSAP `mouseenter` button appears as a `hover?` candidate after load without hovering;
+  cross-origin stylesheets don't throw.
 
 ## Next Up (V2 — see `context/revelio-enhancements.md`)
 
 1. ~~**Unit 1 — Hover candidates**~~ **DONE** — wrapped `addEventListener` + `:hover` CSSOM, no behaviour change.
-2. **Unit 2 — Scan & list**: new `scan.ts` merges registry + live + CSS + hover candidates into
-   a deduped `ScanItem[]`; new `PANEL_SCAN`/`SCAN`/`SCAN_RESULT` messages; `AnimationList` UI; pure
-   JS, zero API calls; row-hover highlights on page.
+2. ~~**Unit 2 — Scan & list**~~ **DONE** — `scan.ts` merges registry/live/CSS/hover into a deduped
+   `ScanItem[]`; `PANEL_SCAN`/`SCAN`/`SCAN_RESULT` + highlight messages; `AnimationList` UI; zero API calls.
 3. **Unit 3 — Rule classifier + template brief**: `classify.ts` + `brief.ts` produce a
    deterministic SOURCE-only brief + paste-ready prompt against `CONCEPT_VOCABULARY` (offline, free).
 4. **Unit 4 — Brief-first panel**: reorder ResultView to Concept → Explanation → Parameters →

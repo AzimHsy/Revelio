@@ -1,6 +1,7 @@
 import { CircleAlert, LoaderCircle } from 'lucide-react'
 import { toCaptureStats } from '../lib/history'
 import type { CropRect, SelectedTarget } from '../lib/types'
+import AnimationList from './components/AnimationList'
 import ApiKeyForm from './components/ApiKeyForm'
 import CaptureSummary from './components/CaptureSummary'
 import Header from './components/Header'
@@ -22,6 +23,9 @@ export default function App() {
     error,
     analysisError,
     recording,
+    scanItems,
+    scanning,
+    selectedScanId,
     startInspect,
     stopInspect,
     selectEntry,
@@ -29,6 +33,10 @@ export default function App() {
     startRecording,
     stopRecording,
     replayOnPage,
+    scanPage,
+    selectScanItem,
+    highlightTarget,
+    clearHighlight,
   } = useInspection()
 
   const entry = history[viewIndex] ?? null
@@ -76,26 +84,39 @@ export default function App() {
               />
             )}
           </>
-        ) : entry ? (
-          // Viewing saved history.
-          <>
-            <HistoryList
-              entries={history}
-              activeIndex={viewIndex}
-              onSelect={selectEntry}
-              onClear={clearHistory}
-            />
-            <CaptureSummary target={entry.target} stats={entry.stats} thumbnail={entry.thumbnail} />
-            <RecordingView
-              recording={recording}
-              onStart={onStartRecording}
-              onStop={stopRecording}
-              onReplay={onReplay}
-            />
-            <ResultView result={entry.result} clone={entry.clone} />
-          </>
         ) : (
-          <IdleState />
+          // Idle: data-driven scan list (V2 Unit 2) above history / the idle prompt.
+          <>
+            <AnimationList
+              items={scanItems}
+              scanning={scanning}
+              selectedId={selectedScanId}
+              onScan={scanPage}
+              onSelect={selectScanItem}
+              onHover={highlightTarget}
+              onLeave={clearHighlight}
+            />
+            {entry ? (
+              <>
+                <HistoryList
+                  entries={history}
+                  activeIndex={viewIndex}
+                  onSelect={selectEntry}
+                  onClear={clearHistory}
+                />
+                <CaptureSummary target={entry.target} stats={entry.stats} thumbnail={entry.thumbnail} />
+                <RecordingView
+                  recording={recording}
+                  onStart={onStartRecording}
+                  onStop={stopRecording}
+                  onReplay={onReplay}
+                />
+                <ResultView result={entry.result} clone={entry.clone} />
+              </>
+            ) : scanItems.length === 0 && !scanning ? (
+              <IdleState />
+            ) : null}
+          </>
         )}
       </main>
     </div>

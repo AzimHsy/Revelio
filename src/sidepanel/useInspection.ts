@@ -7,6 +7,7 @@ import type {
   HistoryEntry,
   PanelCommand,
   RuntimePayload,
+  ScanItem,
   SelectedTarget,
   ToPanelMessage,
 } from '../lib/types'
@@ -49,6 +50,10 @@ export interface InspectionState {
   error: string | null
   analysisError: AnalysisFailure | null
   recording: RecordingState
+  /** V2 Unit 2 — the last page scan's animation list (data-driven capture). */
+  scanItems: ScanItem[]
+  scanning: boolean
+  selectedScanId: string | null
   startInspect: () => void
   stopInspect: () => void
   selectEntry: (index: number) => void
@@ -56,6 +61,10 @@ export interface InspectionState {
   startRecording: (crop?: CropRect | null) => void
   stopRecording: () => void
   replayOnPage: (selector: string) => void
+  scanPage: () => void
+  selectScanItem: (id: string) => void
+  highlightTarget: (selector: string) => void
+  clearHighlight: () => void
 }
 
 function sendCommand(command: PanelCommand): void {
@@ -78,6 +87,9 @@ export function useInspection(): InspectionState {
     url: null,
     error: null,
   })
+  const [scanItems, setScanItems] = useState<ScanItem[]>([])
+  const [scanning, setScanning] = useState(false)
+  const [selectedScanId, setSelectedScanId] = useState<string | null>(null)
 
   // Load persisted history once so it survives the panel closing/reopening.
   useEffect(() => {
@@ -149,6 +161,11 @@ export function useInspection(): InspectionState {
         case 'RECORDING_ERROR':
           setRecording({ isRecording: false, url: null, error: msg.reason })
           break
+        case 'SCAN_RESULT':
+          // Data-driven capture result — populate the list, never auto-analyze.
+          setScanItems(msg.items)
+          setScanning(false)
+          break
       }
     }
     chrome.runtime.onMessage.addListener(onMessage)
@@ -180,6 +197,9 @@ export function useInspection(): InspectionState {
     error,
     analysisError,
     recording,
+    scanItems,
+    scanning,
+    selectedScanId,
     startInspect: () => sendCommand({ type: 'PANEL_START_INSPECT' }),
     stopInspect: () => sendCommand({ type: 'PANEL_STOP_INSPECT' }),
     selectEntry: (index: number) => setViewIndex(index),
@@ -195,5 +215,12 @@ export function useInspection(): InspectionState {
     },
     stopRecording: () => sendCommand({ type: 'PANEL_STOP_RECORD' }),
     replayOnPage: (selector: string) => sendCommand({ type: 'PANEL_REPLAY_SCROLL', selector }),
+    scanPage: () => {
+      setScanning(true)
+      sendCommand({ type: 'PANEL_SCAN' })
+    },
+    selectScanItem: (id: string) => setSelectedScanId(id),
+    highlightTarget: (selector: string) => sendCommand({ type: 'PANEL_HIGHLIGHT_TARGET', selector }),
+    clearHighlight: () => sendCommand({ type: 'PANEL_CLEAR_HIGHLIGHT' }),
   }
 }

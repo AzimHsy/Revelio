@@ -1,6 +1,7 @@
 import type { FromContentMessage, SelectedTarget, ToContentMessage } from '../lib/types'
-import { requestExtraction } from './bridge'
-import { handleKey, startInspect, stopInspect } from './selection'
+import { requestExtraction, requestScan } from './bridge'
+import { hideOverlay, showOverlay } from './overlay'
+import { handleKey, isInspecting, startInspect, stopInspect } from './selection'
 
 // Content script entry (isolated world). Handles selection + the capture
 // shortcut, asks the MAIN-world extractor for runtime data, and relays
@@ -41,8 +42,34 @@ chrome.runtime.onMessage.addListener((raw: unknown) => {
     case 'REPLAY_SCROLL':
       replayScroll(msg.selector)
       break
+    case 'SCAN':
+      // Data-driven capture (V2 Unit 2): ask the MAIN world for the list, relay it.
+      void requestScan().then((items) => send({ type: 'SCAN_RESULT', items }))
+      break
+    case 'HIGHLIGHT_TARGET':
+      highlightTarget(msg.selector)
+      break
+    case 'CLEAR_HIGHLIGHT':
+      // Don't tear down the overlay mid-inspection — inspect owns it then.
+      if (!isInspecting()) hideOverlay()
+      break
   }
 })
+
+// Flash the highlight overlay on a scanned element while its panel row is
+// hovered. The row label is a tag#id.class descriptor, which is also a valid CSS
+// selector; querySelector picks the first match (enough to point the eye at it).
+function highlightTarget(selector: string): void {
+  if (isInspecting()) return // inspect mode already owns the overlay
+  let el: Element | null = null
+  try {
+    el = document.querySelector(selector)
+  } catch {
+    el = null
+  }
+  if (el) showOverlay(el)
+  else hideOverlay()
+}
 
 // Re-fire a scroll-triggered animation: jump the element out of view, then
 // smooth-scroll it back into the middle of the viewport.
