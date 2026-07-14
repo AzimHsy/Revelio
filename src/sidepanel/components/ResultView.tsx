@@ -1,12 +1,13 @@
 import { Sparkles } from 'lucide-react'
-import type { AnalysisResult, ElementClone, ParameterLabel } from '../../lib/types'
+import type { AnalysisParameter, AnalysisResult, ElementClone, ParameterLabel } from '../../lib/types'
 import CodeBlock from './CodeBlock'
 import PreviewStage from './PreviewStage'
+import PromptBlock from './PromptBlock'
 
-// Analysis result, stacked in spec order: concept → explanation → code →
-// parameters (ui-context.md → Layout Patterns). Renders partial results too —
-// each section appears as it streams in, so empty sections are skipped and a
-// blinking caret trails the last-filled section while `streaming`.
+// Analysis result. A rules-tier brief (V2 Unit 3/4) is presented PROMPT-FIRST —
+// Concept → Explanation → Parameters → Prompt (Copy = primary CTA), no live code
+// or preview. Everything else (legacy V1 history, streaming Claude analysis) keeps
+// the original code-first layout unchanged, including the streaming caret.
 export default function ResultView({
   result,
   clone,
@@ -15,6 +16,55 @@ export default function ResultView({
   result: AnalysisResult
   clone?: ElementClone | null
   streaming?: boolean
+}) {
+  if (result.tier === 'rules') return <RulesBriefView result={result} />
+  return <AnalysisView result={result} clone={clone} streaming={streaming} />
+}
+
+// Prompt-first brief (rules tier): instant, no streaming, prompt is the product.
+function RulesBriefView({ result }: { result: AnalysisResult }) {
+  return (
+    <div className="flex flex-col gap-4 px-3 pb-4">
+      {result.concept && (
+        <section className="flex flex-col gap-1">
+          <SectionLabel>Concept</SectionLabel>
+          <h2 className="flex items-center gap-2 text-sm font-semibold text-accent">
+            <Sparkles className="h-4 w-4 shrink-0" />
+            {result.concept}
+          </h2>
+        </section>
+      )}
+
+      {result.explanation && (
+        <section className="flex flex-col gap-1">
+          <SectionLabel>Explanation</SectionLabel>
+          <p className="text-xs leading-relaxed text-primary">{result.explanation}</p>
+        </section>
+      )}
+
+      <ParametersSection parameters={result.parameters} />
+
+      {result.gsapCode && (
+        <section className="flex flex-col gap-1.5">
+          <SectionLabel>Prompt</SectionLabel>
+          <PromptBlock prompt={result.gsapCode} />
+        </section>
+      )}
+    </div>
+  )
+}
+
+// Code-first layout (legacy V1 history + streaming Claude analysis): concept →
+// explanation → code → preview → parameters, with a blinking caret trailing the
+// deepest section still streaming.
+function AnalysisView({
+  result,
+  clone,
+  streaming,
+}: {
+  result: AnalysisResult
+  clone?: ElementClone | null
+  streaming: boolean
 }) {
   const hasParams = result.parameters.length > 0
   // The caret sits on the deepest section that has content so far.
@@ -67,26 +117,31 @@ export default function ResultView({
         <PreviewStage code={result.previewCode} clone={clone} />
       )}
 
-      {hasParams && (
-        <section className="flex flex-col gap-1.5">
-          <SectionLabel>Parameters</SectionLabel>
-          <ul className="flex flex-col gap-1.5">
-            {result.parameters.map((param) => (
-              <li key={param.name} className="rounded-md bg-surface p-2.5">
-                <p className="flex items-center gap-2 font-mono text-xs text-primary">
-                  <span>
-                    {param.name}
-                    {param.value && <span className="text-accent"> = {param.value}</span>}
-                  </span>
-                  <LabelChip label={param.label} />
-                </p>
-                <p className="mt-0.5 text-xs leading-relaxed text-muted">{param.description}</p>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
+      <ParametersSection parameters={result.parameters} />
     </div>
+  )
+}
+
+function ParametersSection({ parameters }: { parameters: AnalysisParameter[] }) {
+  if (parameters.length === 0) return null
+  return (
+    <section className="flex flex-col gap-1.5">
+      <SectionLabel>Parameters</SectionLabel>
+      <ul className="flex flex-col gap-1.5">
+        {parameters.map((param) => (
+          <li key={param.name} className="rounded-md bg-surface p-2.5">
+            <p className="flex items-center gap-2 font-mono text-xs text-primary">
+              <span>
+                {param.name}
+                {param.value && <span className="text-accent"> = {param.value}</span>}
+              </span>
+              <LabelChip label={param.label} />
+            </p>
+            <p className="mt-0.5 text-xs leading-relaxed text-muted">{param.description}</p>
+          </li>
+        ))}
+      </ul>
+    </section>
   )
 }
 

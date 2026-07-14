@@ -7,7 +7,7 @@ Update this file after every meaningful implementation change.
 - **V2 — Vocabulary Bridge (branch `v2-vocabulary-bridge`)** — repositioning V1 from a
   click-first code generator into a scan-and-list, prompt-first, on-demand-AI tool. Single
   source of truth: `context/revelio-enhancements.md` (rev 2) + `context/current-architecture.md`.
-  **Units 0–3 DONE** (doc sync; hover candidates; scan & list; classifier + brief) — see the V2 entries under Completed. Next: Unit 4 (panel: brief-first presentation).
+  **Units 0–4 DONE** (doc sync; hover candidates; scan & list; classifier + brief; brief-first panel) — see the V2 entries under Completed. Next: Unit 5 (demote Claude to Deep analyse).
 - **V1 pipeline complete + streaming + previews + identification/precision enhancements** —
   inspect/capture → MAIN-world extraction → Claude analysis (streamed) →
   concept/explanation/code/parameters render progressively, plus a screenshot thumbnail of the
@@ -478,13 +478,35 @@ Update this file after every meaningful implementation change.
     building blocks; the pick→brief→render flow lands in Unit 4 (presentation) + Unit 5 (remove
     auto-analyze, add Deep analyse). Bundles unchanged (tree-shaken until imported).
 
+- **V2 · Unit 4 — Panel: brief-first presentation** — the panel still presented code as the product;
+  now a rules-tier brief leads with the paste-ready prompt. Presentation-only (per brief touch list);
+  the pick→brief flow that produces a rules-tier result is Unit 5.
+  - `src/sidepanel/components/PromptBlock.tsx` (new) — the paste-ready prompt as wrapped prose
+    (`whitespace-pre-wrap`, not code-scroll) with a full-width **accent "Copy prompt" button as the
+    primary CTA** (vs a code block's small corner copy).
+  - `src/sidepanel/components/ResultView.tsx` — branches on `result.tier`. `tier === 'rules'` →
+    `RulesBriefView`: Concept → Explanation → Parameters → **Prompt** (the prompt lives in `gsapCode`
+    per Unit 3; no live code/preview). Everything else (legacy V1 history, streaming Claude) →
+    `AnalysisView`, the **original code-first layout kept byte-identical incl. the streaming caret**.
+    Extracted a shared `ParametersSection` so both layouts render params the same. `previewCode` empty
+    on rules briefs, so no preview iframe there.
+  - No `App.tsx` change — section ordering lives in ResultView, so per the brief ("App.tsx *if*
+    ordering lives there") it didn't need touching. RecordingView untouched.
+  - **Verified**: `tsc --noEmit && vite build` green (panel bundle 215.6→217.3 kB). Legacy/streaming
+    path is unchanged code, so V1 history + streaming-caret behaviour is preserved by construction; the
+    rules-tier prompt-first render becomes exercisable end-to-end once Unit 5 wires pick→brief.
+    (Build was briefly blocked by a harness safety-classifier outage; re-run once it recovered — green.)
+
 ## In Progress
 
-- None. V2 Unit 3 (classifier + brief) complete + green + logic-verified. Awaiting Azim's go for
-  **Unit 4 — Panel: brief-first presentation**.
+- None. V2 Unit 4 (brief-first presentation) complete + green. Awaiting Azim's go for
+  **Unit 5 — Demote Claude to Deep analyse (on-demand)**.
 
 ### Live accept checks (reload the extension card after building)
-- **Unit 3** — end-to-end pick→brief renders once Unit 4/5 wire it; the deterministic logic is
+- **Unit 4** — a rules-tier brief renders prompt-first with Copy-prompt as the primary action; a V1
+  history entry still displays code-first; streaming Claude analysis still shows the caret. (Full
+  pick→rules-brief path is exercisable after Unit 5 wires it.)
+- **Unit 3** — end-to-end pick→brief renders once Unit 5 wires it; the deterministic logic is
   already verified (pinned ScrollTrigger → `pinned-scroll` brief with SOURCE params + prompt, offline).
 - **Unit 2** — on gsap.com, Scan lists animations with sensible targets incl. a registry-only
   (finished) one; hovering a row highlights that element on the page; the scan makes **zero** network
@@ -499,8 +521,8 @@ Update this file after every meaningful implementation change.
    `ScanItem[]`; `PANEL_SCAN`/`SCAN`/`SCAN_RESULT` + highlight messages; `AnimationList` UI; zero API calls.
 3. ~~**Unit 3 — Rule classifier + template brief**~~ **DONE** — `classify.ts` + `brief.ts`: deterministic
    SOURCE-only brief + paste-ready prompt against `CONCEPT_VOCABULARY` (offline, free); `tier:'rules'`.
-4. **Unit 4 — Brief-first panel**: reorder ResultView to Concept → Explanation → Parameters →
-   Prompt (Copy = primary CTA); code + preview demoted; old history still renders.
+4. ~~**Unit 4 — Brief-first panel**~~ **DONE** — `PromptBlock` + `ResultView` branches on `tier`:
+   rules → Concept → Explanation → Parameters → Prompt (Copy primary); legacy/streaming path unchanged.
 5. **Unit 5 — Demote Claude to Deep analyse**: remove auto-analyze on select; add
    `PANEL_DEEP_ANALYZE` + a `<<<PROMPT>>>` section; normal flow = zero API calls.
 6. **Unit 6 (optional, gated)**: MCP bridge / `window.__revelio__` — do NOT start without an explicit go-ahead.
