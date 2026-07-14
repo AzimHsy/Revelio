@@ -7,9 +7,10 @@ Update this file after every meaningful implementation change.
 - **V2 — Vocabulary Bridge (branch `v2-vocabulary-bridge`)** — repositioning V1 from a
   click-first code generator into a scan-and-list, prompt-first, on-demand-AI tool. Single
   source of truth: `context/revelio-enhancements.md` (rev 2) + `context/current-architecture.md`.
-  **V2 CORE COMPLETE — Units 0–5 DONE** (doc sync; hover candidates; scan & list; classifier + brief;
-  brief-first panel; Claude → on-demand Deep analyse) — see the V2 entries under Completed. Only Unit 6
-  (optional, gated) remains; recommended end-of-V2 step is regenerating current-architecture.md + context sync.
+  **V2 COMPLETE — Units 0–5 + Unit 6 browser-agent global** (doc sync; hover candidates; scan & list;
+  classifier + brief; brief-first panel; Claude → on-demand Deep analyse; read-only `window.__revelio__`)
+  — see the V2 entries under Completed. Unit 6 MCP-bridge sub-piece deferred (optional). Recommended
+  closing step: regenerate current-architecture.md + narrative context sync.
 - **V1 pipeline complete + streaming + previews + identification/precision enhancements** —
   inspect/capture → MAIN-world extraction → Claude analysis (streamed) →
   concept/explanation/code/parameters render progressively, plus a screenshot thumbnail of the
@@ -528,14 +529,31 @@ Update this file after every meaningful implementation change.
     the deep path has real data; synthesized targets carry rect 0 (thumbnail skipped). The live
     Claude/deep-analyse flow is Azim's Chrome pass (costs an API call).
 
+- **V2 · Unit 6 (partial) — Browser-agent global** — the read-only `window.__revelio__` piece only
+  (Azim's explicit choice; the MCP-bridge piece was NOT selected and remains deferred/optional).
+  - `src/injected/global.ts` (new) — `installBrowserGlobal()` defines a frozen, non-writable +
+    non-configurable `window.__revelio__` in the MAIN world exposing `version`, `scan(): ScanItem[]`
+    (also caches for `get`), and `get(id): ScanItem | null`. Extraction only — same serialized scan
+    data the panel sees; never the API key or any `chrome.*` surface. Returned values are deep-cloned
+    (JSON round-trip) so callers can't mutate the cache.
+  - `src/injected/main.ts` — installs it eagerly at document_start after the instrumentation hook
+    (cheap; scan runs only on call).
+  - `context/architecture.md` — documented the surface under "Browser-agent global (`window.__revelio__`)"
+    (the brief's "document, don't build UI"). No UI added.
+  - `tsc --noEmit && vite build` green (main.ts 10.71→11.08 kB). Live check is a page-context call —
+    Azim's Chrome pass (`window.__revelio__.scan()` on a GSAP site returns the animation list).
+
 ## In Progress
 
-- None. **V2 core complete (Units 0–5).** Unit 6 is optional + gated (do not start without an explicit
-  go-ahead). Recommended end-of-V2 step: regenerate `context/current-architecture.md` and sync the
-  narrative context docs (`project-overview.md` capture model/output, `architecture.md` scan/extraction
-  boundaries, `code-standards.md` vocabulary/classifier, `ui-context.md` list/brief UI).
+- None. **V2 COMPLETE** — Units 0–5 (core) + Unit 6 browser-agent global. The Unit 6 **MCP bridge**
+  sub-piece is deliberately deferred (optional; not selected). Recommended closing step: regenerate
+  `context/current-architecture.md` and sync the narrative context docs (`project-overview.md` capture
+  model/output, `architecture.md` scan/extraction boundaries, `code-standards.md` vocabulary/classifier,
+  `ui-context.md` list/brief UI).
 
 ### Live accept checks (reload the extension card after building)
+- **Unit 6** — on a GSAP site, `window.__revelio__.scan()` from the page console/an agent returns the
+  animation list; the property can't be reassigned (read-only); no API key/chrome surface is reachable.
 - **Unit 5** — normal flow (Scan → pick a row → Tier 1 brief) makes **zero** API calls; Deep analyse on
   an `unclassified` item streams a Claude result including the Prompt section; a missing key blocks only
   Deep analyse (Tier 1 still works); old 4-field param history still parses/renders.
@@ -560,7 +578,8 @@ Update this file after every meaningful implementation change.
    rules → Concept → Explanation → Parameters → Prompt (Copy primary); legacy/streaming path unchanged.
 5. ~~**Unit 5 — Demote Claude to Deep analyse**~~ **DONE** — removed auto-analyze; `PANEL_DEEP_ANALYZE`
    + `<<<PROMPT>>>` section; pick→Tier 1 brief (zero network); Deep analyse escalates on demand.
-6. **Unit 6 (optional, gated)**: MCP bridge / `window.__revelio__` — do NOT start without an explicit go-ahead.
+6. ~~**Unit 6 — Browser-agent global**~~ **DONE** — read-only `window.__revelio__` (`scan`/`get`).
+   Its MCP-bridge sub-piece remains **deferred** (optional; not selected).
 7. **End-of-V2 (recommended)**: regenerate `current-architecture.md`; sync narrative context docs.
 
 ## Superseded — original V1 verification checklist (kept for reference)

@@ -14,6 +14,7 @@ import {
   isSplitTextPresent,
   type Scope,
 } from './gsap'
+import { installBrowserGlobal } from './global'
 import { collectHoverCandidates, collectInstrumented, installInstrumentation } from './instrument'
 import { scan } from './scan'
 
@@ -25,6 +26,10 @@ import { scan } from './scan'
 // script runs at document_start (manifest), so this beats the page's own GSAP
 // calls and captures the original vars of tweens that finish before inspection.
 installInstrumentation()
+
+// Expose the read-only browser-agent global (window.__revelio__). Extraction
+// only; safe to install eagerly (it just defines the object — scan runs on call).
+installBrowserGlobal()
 
 window.addEventListener('message', (event: MessageEvent) => {
   if (event.source !== window) return

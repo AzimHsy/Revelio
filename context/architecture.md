@@ -91,3 +91,20 @@ Scoped to the V1 Chrome extension. No web app or backend service exists yet.
 6. Model-generated preview code runs ONLY inside the `src/sandbox/` page (opaque origin, no
    extension APIs, network blocked by CSP). It is never executed in the panel, the content
    world, or the service worker.
+
+## Browser-agent global (`window.__revelio__`)
+
+A read-only integration surface (V2 Unit 6) exposed by the MAIN-world script
+(`src/injected/global.ts`) for browser-driving agents that operate in the page's own
+context (not via the extension UI). Extraction only — it returns the same serialized scan
+data the panel sees; it never exposes the API key or any `chrome.*` surface.
+
+- `window.__revelio__.version: number` — API version (currently `1`).
+- `window.__revelio__.scan(): ScanItem[]` — enumerate the page's animations now (instrumented
+  registry + live GSAP + CSS + hover candidates, deduped). Also caches the result for `get`.
+- `window.__revelio__.get(id: string): ScanItem | null` — look up one item from the most recent
+  `scan()` by its id.
+
+Read-only by construction: the object and every returned value are frozen/deep-cloned, and the
+property is defined non-writable + non-configurable so page code cannot replace or tamper with it.
+There is deliberately no UI for this — it is a programmatic surface only.
