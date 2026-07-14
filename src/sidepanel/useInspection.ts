@@ -11,6 +11,7 @@ import type {
   SelectedTarget,
   ToPanelMessage,
 } from '../lib/types'
+import { briefFromItem, payloadFromRecord, targetFromItem } from './scanBrief'
 
 // All side panel messaging lives in this hook — components stay presentational
 // (code-standards.md → React). The panel only talks to the background worker;
@@ -34,6 +35,13 @@ export interface PendingCapture {
   clone?: ElementClone | null
 }
 
+/** A scan pick and its instant Tier 1 brief (V2 Unit 5). Deep analyse streams the
+ *  `result` in place (tier 'rules' → 'deep'). */
+export interface ScanBrief {
+  item: ScanItem
+  result: AnalysisResult | null
+}
+
 /** Screen-recording state for the current tab (a page-level action). */
 export interface RecordingState {
   isRecording: boolean
@@ -54,6 +62,8 @@ export interface InspectionState {
   scanItems: ScanItem[]
   scanning: boolean
   selectedScanId: string | null
+  /** V2 Unit 5 — the picked scan item's Tier 1 brief (or its streaming deep result). */
+  brief: ScanBrief | null
   startInspect: () => void
   stopInspect: () => void
   selectEntry: (index: number) => void
@@ -65,6 +75,8 @@ export interface InspectionState {
   selectScanItem: (id: string) => void
   highlightTarget: (selector: string) => void
   clearHighlight: () => void
+  /** Escalate the current subject (element capture or scan pick) to Claude. */
+  deepAnalyze: () => void
 }
 
 function sendCommand(command: PanelCommand): void {
@@ -90,6 +102,7 @@ export function useInspection(): InspectionState {
   const [scanItems, setScanItems] = useState<ScanItem[]>([])
   const [scanning, setScanning] = useState(false)
   const [selectedScanId, setSelectedScanId] = useState<string | null>(null)
+  const [brief, setBrief] = useState<ScanBrief | null>(null)
 
   // Load persisted history once so it survives the panel closing/reopening.
   useEffect(() => {
@@ -113,9 +126,10 @@ export function useInspection(): InspectionState {
           break
         case 'ELEMENT_SELECTED':
         case 'SECTION_CAPTURED':
-          // New capture becomes the live pending view. History is untouched —
-          // the previous results stay saved and navigable.
+          // New capture becomes the live pending view (no auto-analyze — Unit 5).
+          // History is untouched; a picked scan brief, if any, is superseded.
           setStatus('idle')
+          setBrief(null)
           setPending({
             target: msg.target,
             payload: msg.payload,
@@ -126,25 +140,30 @@ export function useInspection(): InspectionState {
           setAnalysisError(null)
           break
         case 'ANALYSIS_STARTED':
+          // Deep analyse started — clear the current result on whichever subject
+          // is active so the spinner shows until the stream fills it.
           setStatus('analyzing')
           setPending((prev) => (prev ? { ...prev, result: null } : prev))
+          setBrief((prev) => (prev ? { ...prev, result: null } : prev))
           setAnalysisError(null)
           break
         case 'ANALYSIS_PROGRESS':
           setPending((prev) => (prev ? { ...prev, result: msg.partial } : prev))
+          setBrief((prev) => (prev ? { ...prev, result: msg.partial } : prev))
           break
         case 'THUMBNAIL_READY':
           setPending((prev) => (prev ? { ...prev, thumbnail: msg.thumbnail } : prev))
           break
         case 'ANALYSIS_RESULT':
-          // Fold the finished capture into history and show it (newest).
+          // Fold the finished deep result into history and show it (newest).
           setHistory((prev) => [msg.entry, ...prev].slice(0, MAX_HISTORY))
           setViewIndex(0)
           setPending(null)
+          setBrief(null)
           setStatus('idle')
           break
         case 'ANALYSIS_ERROR':
-          // Keep `pending` so the capture summary + error/key-form stay visible.
+          // Keep pending/brief so the summary + error/key-form stay visible.
           setStatus('idle')
           setAnalysisError({ reason: msg.reason, missingKey: msg.missingKey })
           break
@@ -189,6 +208,44 @@ export function useInspection(): InspectionState {
     return () => window.removeEventListener('keydown', onKey)
   }, [status])
 
+  // Pick a scanned animation → build its Tier 1 brief instantly (no network) and
+  // show it below the list; the element-capture view (if any) is superseded.
+  function selectScanItem(id: string): void {
+    const item = scanItems.find((candidate) => candidate.id === id)
+    if (!item) return
+    setSelectedScanId(id)
+    setPending(null)
+    setAnalysisError(null)
+    setStatus('idle')
+    setBrief({ item, result: briefFromItem(item) })
+  }
+
+  // Escalate the current subject to Claude. Prefers a real element capture; else
+  // sends a payload synthesized from the picked scan item's record.
+  function deepAnalyze(): void {
+    if (pending && pending.payload) {
+      setStatus('analyzing')
+      setAnalysisError(null)
+      sendCommand({
+        type: 'PANEL_DEEP_ANALYZE',
+        target: pending.target,
+        payload: pending.payload,
+        clone: pending.clone ?? null,
+      })
+      return
+    }
+    if (brief) {
+      setStatus('analyzing')
+      setAnalysisError(null)
+      sendCommand({
+        type: 'PANEL_DEEP_ANALYZE',
+        target: targetFromItem(brief.item),
+        payload: payloadFromRecord(brief.item.record),
+        clone: null,
+      })
+    }
+  }
+
   return {
     status,
     history,
@@ -200,6 +257,7 @@ export function useInspection(): InspectionState {
     scanItems,
     scanning,
     selectedScanId,
+    brief,
     startInspect: () => sendCommand({ type: 'PANEL_START_INSPECT' }),
     stopInspect: () => sendCommand({ type: 'PANEL_STOP_INSPECT' }),
     selectEntry: (index: number) => setViewIndex(index),
@@ -219,8 +277,9 @@ export function useInspection(): InspectionState {
       setScanning(true)
       sendCommand({ type: 'PANEL_SCAN' })
     },
-    selectScanItem: (id: string) => setSelectedScanId(id),
+    selectScanItem,
     highlightTarget: (selector: string) => sendCommand({ type: 'PANEL_HIGHLIGHT_TARGET', selector }),
     clearHighlight: () => sendCommand({ type: 'PANEL_CLEAR_HIGHLIGHT' }),
+    deepAnalyze,
   }
 }

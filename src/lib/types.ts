@@ -278,6 +278,10 @@ export type PanelCommand =
   | { type: 'PANEL_SCAN' }
   | { type: 'PANEL_HIGHLIGHT_TARGET'; selector: string }
   | { type: 'PANEL_CLEAR_HIGHLIGHT' }
+  // V2 Unit 5 — on-demand Claude "Deep analyse" of one subject. The panel sends a
+  // target + payload (the real one for an element capture, or a minimal one
+  // synthesized from a scan item's record); the worker digests + streams it.
+  | { type: 'PANEL_DEEP_ANALYZE'; target: SelectedTarget; payload: RuntimePayload; clone: ElementClone | null }
 
 // ---------------------------------------------------------------------------
 // Screen recording: worker ⇄ offscreen document (holds the MediaRecorder, since
@@ -340,6 +344,12 @@ export interface AnalysisResult {
    * history still renders.
    */
   previewCode: string
+  /**
+   * Paste-ready prompt for the developer's own coding agent (V2 Unit 5). On a
+   * `deep`-tier result the model emits it as a `<<<PROMPT>>>` section; a
+   * `rules`-tier brief instead carries its prompt in `gsapCode`. Absent otherwise.
+   */
+  prompt?: string
   /** Which tier produced this (V2). Absent on pre-V2 history entries. */
   tier?: AnalysisTier
 }

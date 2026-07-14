@@ -27,13 +27,10 @@ chrome.runtime.onMessage.addListener((raw: unknown, sender) => {
   if (typeof raw !== 'object' || raw === null || !('type' in raw)) return
 
   // Messages with a sender.tab come from the content script — relay them to
-  // the side panel. Everything else is a panel command to route to the page.
+  // the side panel. Selections no longer auto-analyze (V2 Unit 5): the panel
+  // shows an instant Tier 1 brief and only calls Claude on explicit Deep analyse.
   if (sender.tab) {
-    const msg = raw as FromContentMessage
-    broadcastToPanel(msg)
-    if ((msg.type === 'ELEMENT_SELECTED' || msg.type === 'SECTION_CAPTURED') && msg.payload) {
-      void analyze(msg.target, msg.payload, sender.tab?.windowId, msg.clone ?? null)
-    }
+    broadcastToPanel(raw as FromContentMessage)
     return
   }
 
@@ -81,6 +78,12 @@ chrome.runtime.onMessage.addListener((raw: unknown, sender) => {
       break
     case 'PANEL_CLEAR_HIGHLIGHT':
       void sendToActiveTab({ type: 'CLEAR_HIGHLIGHT' })
+      break
+    case 'PANEL_DEEP_ANALYZE':
+      // On-demand Claude escalation (V2 Unit 5). The panel supplies the target +
+      // payload (real for an element capture, synthesized from a scan item's
+      // record otherwise); this is the only remaining Claude call site.
+      void analyze(command.target, command.payload, undefined, command.clone)
       break
   }
 })
@@ -137,10 +140,9 @@ function broadcastToPanel(msg: ToPanelMessage): void {
   chrome.runtime.sendMessage(msg).catch(() => {})
 }
 
-// Captures auto-analyze: the core flow is click → extract → Claude → panel
-// (project-overview.md → Core User Flow). A successful analysis is persisted to
-// the recent-history store here (so it survives the panel closing) and the
-// entry is broadcast to the panel.
+// Deep analyse: the on-demand Claude escalation (V2 Unit 5). Streams a `deep`-tier
+// result (concept/explanation/code/preview + a paste-ready prompt) and persists it
+// to the recent-history store so it survives the panel closing.
 async function analyze(
   target: SelectedTarget,
   payload: RuntimePayload,
@@ -148,17 +150,19 @@ async function analyze(
   clone: ElementClone | null = null,
 ): Promise<void> {
   broadcastToPanel({ type: 'ANALYSIS_STARTED' })
-  // Screenshot runs in parallel with the Claude call — it's optional, so it
-  // never blocks or fails the analysis. Broadcast it as soon as it's ready for
-  // the live view, and fold the same result into the stored entry.
-  const thumbnailPromise = captureThumbnail(target, windowId)
+  // Screenshot runs in parallel with the Claude call — optional, never blocks/fails
+  // the analysis. Skipped for synthesized scan-item targets (no real rect to crop).
+  const wantThumbnail = target.rect.width > 0 && target.rect.height > 0
+  const thumbnailPromise = wantThumbnail ? captureThumbnail(target, windowId) : Promise.resolve(null)
   void thumbnailPromise.then((thumbnail) => {
     if (thumbnail) broadcastToPanel({ type: 'THUMBNAIL_READY', thumbnail })
   })
   try {
     const result = await analyzeCapture(target, payload, clone, (partial) => {
+      partial.tier = 'deep'
       broadcastToPanel({ type: 'ANALYSIS_PROGRESS', partial })
     })
+    result.tier = 'deep'
     const entry: HistoryEntry = {
       id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
       target,

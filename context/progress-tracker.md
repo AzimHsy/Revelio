@@ -7,7 +7,9 @@ Update this file after every meaningful implementation change.
 - **V2 — Vocabulary Bridge (branch `v2-vocabulary-bridge`)** — repositioning V1 from a
   click-first code generator into a scan-and-list, prompt-first, on-demand-AI tool. Single
   source of truth: `context/revelio-enhancements.md` (rev 2) + `context/current-architecture.md`.
-  **Units 0–4 DONE** (doc sync; hover candidates; scan & list; classifier + brief; brief-first panel) — see the V2 entries under Completed. Next: Unit 5 (demote Claude to Deep analyse).
+  **V2 CORE COMPLETE — Units 0–5 DONE** (doc sync; hover candidates; scan & list; classifier + brief;
+  brief-first panel; Claude → on-demand Deep analyse) — see the V2 entries under Completed. Only Unit 6
+  (optional, gated) remains; recommended end-of-V2 step is regenerating current-architecture.md + context sync.
 - **V1 pipeline complete + streaming + previews + identification/precision enhancements** —
   inspect/capture → MAIN-world extraction → Claude analysis (streamed) →
   concept/explanation/code/parameters render progressively, plus a screenshot thumbnail of the
@@ -497,15 +499,48 @@ Update this file after every meaningful implementation change.
     rules-tier prompt-first render becomes exercisable end-to-end once Unit 5 wires pick→brief.
     (Build was briefly blocked by a harness safety-classifier outage; re-run once it recovered — green.)
 
+- **V2 · Unit 5 — Demote Claude to Deep analyse (on-demand)** — AI becomes the escape hatch for the
+  compound ~20-30%, not the pipeline. This wires pick→brief and makes the normal flow zero-API. Final
+  core V2 unit (multi-world: worker + lib + sidepanel).
+  - `src/background/worker.ts` — **removed auto-analyze** on `ELEMENT_SELECTED`/`SECTION_CAPTURED`
+    (selections just relay now); added `PANEL_DEEP_ANALYZE` → `analyze()` (now the ONLY Claude call
+    site). `analyze()` stamps `tier:'deep'` on partials + final, and skips the thumbnail for
+    synthesized scan-item targets (zero rect).
+  - `src/lib/prompt.ts` — 7th job + a `<<<PROMPT>>>` output section (paste-ready agent prompt), CODE/
+    PREVIEW kept for the deep path. `src/lib/analysis.ts` — parse `PROMPT` → `AnalysisResult.prompt`,
+    tolerant when absent (old responses/mid-stream unaffected; 4-field param parsing untouched).
+  - `src/lib/types.ts` — `AnalysisResult.prompt?`; `PANEL_DEEP_ANALYZE{target, payload, clone}`.
+  - `src/sidepanel/scanBrief.ts` (new) — `briefFromItem` (classify+buildBrief, instant/offline),
+    `targetFromItem` + `payloadFromRecord` (wrap one scan record into a minimal RuntimePayload so
+    `digestForPrompt` + capture-summary counts see exactly that animation).
+  - `src/sidepanel/useInspection.ts` — `brief` state (picked item + its Tier 1 result); `selectScanItem`
+    now builds the brief instantly (zero network); `deepAnalyze()` escalates the active subject (real
+    payload for an element capture, synthesized for a scan pick); ANALYSIS_* stream into whichever of
+    pending/brief is active; deep result folds to history.
+  - `src/sidepanel/components/` — `DeepAnalyzeButton` (secondary for a classified brief, **primary when
+    `unclassified`**, spinner while asking); `ResultView` `RulesBriefView`→`BriefView` now also renders
+    `tier:'deep'` (Concept → Explanation → Parameters → Prompt → Code → Preview, streaming caret);
+    `App.tsx` shows the picked brief below the list + a Deep analyse button on both paths. ApiKeyForm/
+    missingKey/streaming flows unchanged.
+  - **Verified**: `tsc --noEmit && vite build` green (panel 217.3→225.3 kB — classify/brief now
+    bundled). Adapter logic checked via tsx: registry/ST/hover scan items → correct rules briefs, and
+    `payloadFromRecord` digests cleanly (instrumented:1 / scrollTriggers:1 / tweens:1 respectively) so
+    the deep path has real data; synthesized targets carry rect 0 (thumbnail skipped). The live
+    Claude/deep-analyse flow is Azim's Chrome pass (costs an API call).
+
 ## In Progress
 
-- None. V2 Unit 4 (brief-first presentation) complete + green. Awaiting Azim's go for
-  **Unit 5 — Demote Claude to Deep analyse (on-demand)**.
+- None. **V2 core complete (Units 0–5).** Unit 6 is optional + gated (do not start without an explicit
+  go-ahead). Recommended end-of-V2 step: regenerate `context/current-architecture.md` and sync the
+  narrative context docs (`project-overview.md` capture model/output, `architecture.md` scan/extraction
+  boundaries, `code-standards.md` vocabulary/classifier, `ui-context.md` list/brief UI).
 
 ### Live accept checks (reload the extension card after building)
+- **Unit 5** — normal flow (Scan → pick a row → Tier 1 brief) makes **zero** API calls; Deep analyse on
+  an `unclassified` item streams a Claude result including the Prompt section; a missing key blocks only
+  Deep analyse (Tier 1 still works); old 4-field param history still parses/renders.
 - **Unit 4** — a rules-tier brief renders prompt-first with Copy-prompt as the primary action; a V1
-  history entry still displays code-first; streaming Claude analysis still shows the caret. (Full
-  pick→rules-brief path is exercisable after Unit 5 wires it.)
+  history entry still displays code-first; streaming Claude analysis still shows the caret.
 - **Unit 3** — end-to-end pick→brief renders once Unit 5 wires it; the deterministic logic is
   already verified (pinned ScrollTrigger → `pinned-scroll` brief with SOURCE params + prompt, offline).
 - **Unit 2** — on gsap.com, Scan lists animations with sensible targets incl. a registry-only
@@ -523,9 +558,10 @@ Update this file after every meaningful implementation change.
    SOURCE-only brief + paste-ready prompt against `CONCEPT_VOCABULARY` (offline, free); `tier:'rules'`.
 4. ~~**Unit 4 — Brief-first panel**~~ **DONE** — `PromptBlock` + `ResultView` branches on `tier`:
    rules → Concept → Explanation → Parameters → Prompt (Copy primary); legacy/streaming path unchanged.
-5. **Unit 5 — Demote Claude to Deep analyse**: remove auto-analyze on select; add
-   `PANEL_DEEP_ANALYZE` + a `<<<PROMPT>>>` section; normal flow = zero API calls.
+5. ~~**Unit 5 — Demote Claude to Deep analyse**~~ **DONE** — removed auto-analyze; `PANEL_DEEP_ANALYZE`
+   + `<<<PROMPT>>>` section; pick→Tier 1 brief (zero network); Deep analyse escalates on demand.
 6. **Unit 6 (optional, gated)**: MCP bridge / `window.__revelio__` — do NOT start without an explicit go-ahead.
+7. **End-of-V2 (recommended)**: regenerate `current-architecture.md`; sync narrative context docs.
 
 ## Superseded — original V1 verification checklist (kept for reference)
 

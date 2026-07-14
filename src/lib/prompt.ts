@@ -49,6 +49,8 @@ new kebab-case slug and append " (new)" to it.
 5. Break down the key parameters, each tagged with an honesty label (see below).
 6. Write a self-contained PREVIEW that demonstrates the technique on the sandbox stage described
    under "Preview stage" at the end of the user message.
+7. Write a concise, paste-ready PROMPT the developer can hand to their own AI coding agent to recreate
+   this animation in their own codebase.
 
 Controlled concept vocabulary (pick exactly one; propose a new slug only as a last resort):
 ${CONCEPT_VOCABULARY.join(', ')}
@@ -108,7 +110,12 @@ one parameter per line, formatted as: name | value | label | description
 (label is exactly one of SOURCE / PARTIAL / GUESS; the description explains what the parameter controls —
 repeat the line for each key parameter)
 <<<PREVIEW>>>
-the self-contained core-gsap preview code, raw (no fences), targeting the selectors in "Preview stage"`
+the self-contained core-gsap preview code, raw (no fences), targeting the selectors in "Preview stage"
+<<<PROMPT>>>
+a concise, paste-ready instruction (plain text, no fences) telling an AI coding agent how to recreate
+this exact animation: name the concept, the interaction model, the key captured parameters (real values
+from the runtime data, not invented), and the structure (what animates in what order). End with the
+line "Adapt selectors to my codebase."`
 
 export function buildUserPrompt(
   target: SelectedTarget,

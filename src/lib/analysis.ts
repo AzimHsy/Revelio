@@ -5,7 +5,7 @@ import type { AnalysisParameter, AnalysisResult, ParameterLabel } from './types'
 // (code-standards.md → parse defensively). Never throws — missing sections
 // come back as empty strings / an empty array; the caller validates the final.
 
-const SECTION_RE = /<<<(CONCEPT|EXPLANATION|CODE|PARAMETERS|PREVIEW)>>>/g
+const SECTION_RE = /<<<(CONCEPT|EXPLANATION|CODE|PARAMETERS|PREVIEW|PROMPT)>>>/g
 
 export function parseAnalysisText(raw: string): AnalysisResult {
   // Drop a trailing partial marker mid-stream (e.g. "<<<PARA") so it never
@@ -30,6 +30,9 @@ export function parseAnalysisText(raw: string): AnalysisResult {
     gsapCode: stripFences(sections['CODE'] ?? ''),
     parameters: parseParameters(sections['PARAMETERS'] ?? ''),
     previewCode: stripFences(sections['PREVIEW'] ?? ''),
+    // Paste-ready prompt (V2 Unit 5). Tolerant when absent (undefined) so pre-V2
+    // responses and mid-stream prefixes still parse.
+    prompt: sections['PROMPT'] ? sections['PROMPT'] : undefined,
   }
 }
 

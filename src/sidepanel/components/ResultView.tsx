@@ -17,12 +17,44 @@ export default function ResultView({
   clone?: ElementClone | null
   streaming?: boolean
 }) {
-  if (result.tier === 'rules') return <RulesBriefView result={result} />
+  if (result.tier === 'rules' || result.tier === 'deep') {
+    return <BriefView result={result} clone={clone} streaming={streaming} />
+  }
   return <AnalysisView result={result} clone={clone} streaming={streaming} />
 }
 
-// Prompt-first brief (rules tier): instant, no streaming, prompt is the product.
-function RulesBriefView({ result }: { result: AnalysisResult }) {
+// Prompt-first brief (rules + deep tiers): Concept → Explanation → Parameters →
+// Prompt, then GSAP code + Preview only when present (deep analyse has them; a
+// rules brief carries only the prompt, in `gsapCode`).
+function BriefView({
+  result,
+  clone,
+  streaming,
+}: {
+  result: AnalysisResult
+  clone?: ElementClone | null
+  streaming: boolean
+}) {
+  const isRules = result.tier === 'rules'
+  // A rules brief keeps its prompt in gsapCode and has no live code/preview.
+  const promptText = isRules ? result.gsapCode : (result.prompt ?? '')
+  const codeText = isRules ? '' : result.gsapCode
+  const previewText = isRules ? '' : result.previewCode
+  const hasParams = result.parameters.length > 0
+  const caretOn = !streaming
+    ? null
+    : hasParams
+      ? 'parameters'
+      : codeText
+        ? 'code'
+        : promptText
+          ? 'prompt'
+          : result.explanation
+            ? 'explanation'
+            : result.concept
+              ? 'concept'
+              : null
+
   return (
     <div className="flex flex-col gap-4 px-3 pb-4">
       {result.concept && (
@@ -31,6 +63,7 @@ function RulesBriefView({ result }: { result: AnalysisResult }) {
           <h2 className="flex items-center gap-2 text-sm font-semibold text-accent">
             <Sparkles className="h-4 w-4 shrink-0" />
             {result.concept}
+            {caretOn === 'concept' && <Caret />}
           </h2>
         </section>
       )}
@@ -38,18 +71,30 @@ function RulesBriefView({ result }: { result: AnalysisResult }) {
       {result.explanation && (
         <section className="flex flex-col gap-1">
           <SectionLabel>Explanation</SectionLabel>
-          <p className="text-xs leading-relaxed text-primary">{result.explanation}</p>
+          <p className="text-xs leading-relaxed text-primary">
+            {result.explanation}
+            {caretOn === 'explanation' && <Caret />}
+          </p>
         </section>
       )}
 
       <ParametersSection parameters={result.parameters} />
 
-      {result.gsapCode && (
+      {promptText && (
         <section className="flex flex-col gap-1.5">
           <SectionLabel>Prompt</SectionLabel>
-          <PromptBlock prompt={result.gsapCode} />
+          <PromptBlock prompt={promptText} />
         </section>
       )}
+
+      {codeText && (
+        <section className="flex flex-col gap-1.5">
+          <SectionLabel>GSAP code</SectionLabel>
+          <CodeBlock code={codeText} />
+        </section>
+      )}
+
+      {!streaming && previewText && <PreviewStage code={previewText} clone={clone} />}
     </div>
   )
 }
