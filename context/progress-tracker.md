@@ -4,6 +4,10 @@ Update this file after every meaningful implementation change.
 
 ## Current Phase
 
+- **V2 — Vocabulary Bridge (branch `v2-vocabulary-bridge`)** — repositioning V1 from a
+  click-first code generator into a scan-and-list, prompt-first, on-demand-AI tool. Single
+  source of truth: `context/revelio-enhancements.md` (rev 2) + `context/current-architecture.md`.
+  **Unit 0 (doc sync) DONE** — see the V2 entry under Completed. Next: Unit 1 (hover candidates).
 - **V1 pipeline complete + streaming + previews + identification/precision enhancements** —
   inspect/capture → MAIN-world extraction → Claude analysis (streamed) →
   concept/explanation/code/parameters render progressively, plus a screenshot thumbnail of the
@@ -11,7 +15,7 @@ Update this file after every meaningful implementation change.
   live on gsap.com. **Enhancement 1** (prompt-only: controlled concept vocabulary, honesty labels
   SOURCE/PARTIAL/GUESS, interaction-model-first, capture-every-state, GSAP grounding) and
   **Enhancement 2** (document_start GSAP creation-time instrumentation → recover finished load-in
-  reveals as SOURCE truth) both built; `npm run build` + `tsc --noEmit` green. All await a live pass.
+  reveals as SOURCE truth) both built; `npm run build` + `tsc --noEmit` green, verified live.
 
 ## Current Goal
 
@@ -27,7 +31,8 @@ Update this file after every meaningful implementation change.
     `background` service worker, `sidePanel` + `storage` permissions). Edit this, not the
     generated `dist/manifest.json`.
   - `src/sidepanel/` holds the React app (placeholder "scaffold loaded" view).
-  - `src/background/index.ts` is a minimal worker that only sets
+  - `src/background/worker.ts` (the background service-worker entry — was `index.ts` at
+    scaffold time, since renamed) is a minimal worker that only sets
     `openPanelOnActionClick` so clicking the toolbar icon opens the panel (needed to make
     the scaffold verifiable in Chrome). No message brokering / Claude call yet.
   - `src/content/`, `src/injected/`, `src/lib/` created as empty placeholders
@@ -85,7 +90,7 @@ Update this file after every meaningful implementation change.
     shapes), bridge request/response types; `ELEMENT_SELECTED` / `SECTION_CAPTURED`
     now carry `payload: RuntimePayload | null`.
 
-- **Background broker** — `src/background/index.ts` is now the messaging hub.
+- **Background broker** — `src/background/worker.ts` is now the messaging hub.
   - Content messages (recognized by `sender.tab`) are relayed as-is to the side
     panel; panel commands (`PANEL_START_INSPECT` / `PANEL_STOP_INSPECT`) are routed
     to the active tab as `START_INSPECT` / `STOP_INSPECT`.
@@ -111,14 +116,16 @@ Update this file after every meaningful implementation change.
 - **Background Claude call** — captures now auto-analyze (core user flow).
   - `@anthropic-ai/sdk` in the service worker (`dangerouslyAllowBrowser` — MV3
     workers count as browser env), `host_permissions` for `api.anthropic.com`.
-  - `src/lib/prompt.ts` — system + user prompt in one place; asks for strict
-    JSON `{concept, explanation, gsapCode, parameters[]}`.
+  - `src/lib/prompt.ts` — system + user prompt in one place. **[Superseded]** originally
+    asked for strict JSON `{concept, explanation, gsapCode, parameters[]}`; the "Streaming
+    analysis" unit below replaced this with the `<<<SECTION>>>` delimiter format (current).
   - `src/lib/storage.ts` — `getApiKey`/`setApiKey` on `chrome.storage.local`
     (key never logged / never in page context, invariant 4).
   - `src/background/claude.ts` — the ONLY Claude call site (invariant 3):
-    `claude-sonnet-4-6`, max_tokens 3000, defensive parsing (fence-strip,
-    brace-extract, shape validation), typed SDK errors mapped to safe
-    panel-facing messages (`missingKey` flag for auth problems).
+    `claude-sonnet-4-6`. **[Superseded]** this unit used `max_tokens 3000` + JSON parsing
+    (fence-strip, brace-extract, shape validation); current code streams delimiter sections,
+    `max_tokens 3500`, and parses via `src/lib/analysis.ts`. Typed SDK errors mapped to safe
+    panel-facing messages (`missingKey` flag for auth problems) — unchanged.
   - Broker broadcasts `ANALYSIS_STARTED` / `ANALYSIS_RESULT` / `ANALYSIS_ERROR`.
 
 - **Result rendering + API key onboarding** — the panel now completes the loop.
@@ -137,6 +144,8 @@ Update this file after every meaningful implementation change.
   - Output format changed from JSON to delimiter sections
     (`<<<CONCEPT>>>`/`EXPLANATION`/`CODE`/`PARAMETERS`, params as
     `name | value | description` lines) so it parses incrementally — `src/lib/prompt.ts`.
+    (Enhancement 1 later extended the params line to 4 fields
+    `name | value | label | description` with a SOURCE/PARTIAL/GUESS honesty label — current.)
   - `src/lib/analysis.ts` — `parseAnalysisText` (partial-tolerant, strips a
     mid-stream trailing marker, defends against stray code fences) + `isComplete`.
     Replaces the old JSON `parseAnalysis` in `claude.ts`. Verified against
@@ -375,13 +384,47 @@ Update this file after every meaningful implementation change.
     ("click the Revelio toolbar icon on this page, then Record; a reload clears it") + added a standing
     tip under the Record button. Operational fix: re-invoke via the toolbar icon after any page reload.
 
+- **V2 · Unit 0 — Doc sync** — reconciled the context specs with the verified code snapshot
+  (`context/current-architecture.md`) before building V2, so later units stand on true docs.
+  - Renamed all six `context/*_1.md` specs to their unsuffixed names (`architecture.md`,
+    `code-standards.md`, `project-overview.md`, `ui-context.md`, `ai-workflow-rules.md`,
+    `progress-tracker.md`) via `git mv` (history preserved). CLAUDE.md and the in-code doc
+    references already used the unsuffixed names, so the rename fixes those links.
+  - `architecture.md` — added the two undocumented worlds to System Boundaries (`src/sandbox/`
+    = sole place model code runs; `src/offscreen/` = MediaRecorder host); added a **Permissions**
+    section (real `permissions`: `sidePanel`/`storage`/`activeTab`/`tabCapture`/`offscreen`;
+    `host_permissions`; the sandbox page + locked sandbox CSP; `web_accessible_resources`; the
+    runtime-created offscreen page + its `vite.config.ts` input); extended Invariant 5 with the
+    instrumentation monkey-patch nuance (records-then-calls-through, behaviour never altered) and
+    added Invariant 6 (generated preview code runs only in the sandbox).
+  - `progress-tracker.md` — corrected the stale early entries flagged by current-architecture.md:
+    `index.ts` → `worker.ts` (2 spots), marked the JSON / `max_tokens 3000` / brace-extract claims
+    **[Superseded]** with pointers to the units that changed them, and noted the params line is now
+    4-field (`name | value | label | description`).
+  - No feature code touched. `tsc --noEmit && vite build` green (docs-only change).
+
 ## In Progress
 
-- None. Selection reach + faithful-clone preview + real-element recording built + green. Enhancements
-  1 (identification quality) and 2 (load-time instrumentation) done + green; verified live. Preview
-  centering + recording-invocation guidance fixed. `npm run build` green.
+- None. V2 Unit 0 (doc sync) complete. Ready to start **V2 Unit 1 — Hover candidates**
+  (extend `instrument.ts` to wrap `addEventListener` for `mouseenter`/`mouseover` + read
+  same-origin `:hover` CSSOM rules; add `HoverCandidate` to types). See `revelio-enhancements.md`.
 
-## Next Up
+## Next Up (V2 — see `context/revelio-enhancements.md`)
+
+1. **Unit 1 — Hover candidates**: registry can't see hover tweens until triggered; record where
+   to hover (wrapped `addEventListener` + `:hover` CSSOM), never altering page behaviour.
+2. **Unit 2 — Scan & list**: new `scan.ts` merges registry + live + CSS + hover candidates into
+   a deduped `ScanItem[]`; new `PANEL_SCAN`/`SCAN`/`SCAN_RESULT` messages; `AnimationList` UI; pure
+   JS, zero API calls; row-hover highlights on page.
+3. **Unit 3 — Rule classifier + template brief**: `classify.ts` + `brief.ts` produce a
+   deterministic SOURCE-only brief + paste-ready prompt against `CONCEPT_VOCABULARY` (offline, free).
+4. **Unit 4 — Brief-first panel**: reorder ResultView to Concept → Explanation → Parameters →
+   Prompt (Copy = primary CTA); code + preview demoted; old history still renders.
+5. **Unit 5 — Demote Claude to Deep analyse**: remove auto-analyze on select; add
+   `PANEL_DEEP_ANALYZE` + a `<<<PROMPT>>>` section; normal flow = zero API calls.
+6. **Unit 6 (optional, gated)**: MCP bridge / `window.__revelio__` — do NOT start without an explicit go-ahead.
+
+## Superseded — original V1 verification checklist (kept for reference)
 
 0. **Live Chrome pass for Enhancements 1 + 2** (reload the extension card after building):
    - **E1**: on a gsap.com capture — concept is a slug from the vocabulary; the explanation opens

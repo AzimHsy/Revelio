@@ -29,14 +29,39 @@ Scoped to the V1 Chrome extension. No web app or backend service exists yet.
   `window.gsap` directly.
 - `src/injected/` — Page-context script (MAIN world). The only place that can read the
   page's live `window.gsap` / `ScrollTrigger` objects. Serializes runtime data and posts
-  it back to the content script.
-- `src/lib/` — Shared types, the Claude prompt builder, and the runtime-data serializer.
+  it back to the content script. Also installs the document_start instrumentation trap
+  (`instrument.ts`) that records GSAP calls at creation time.
+- `src/sandbox/` — Sandboxed page (opaque origin, no extension APIs, network blocked by
+  its own CSP). The single place model-generated GSAP preview code is allowed to execute
+  (`new Function('gsap', code)`). Embedded by the side panel in an `<iframe>`.
+- `src/offscreen/` — Offscreen document. Hosts the `MediaRecorder` for screen recording,
+  which a service worker cannot hold. The worker mints a `tabCapture` streamId and hands
+  it here; the doc records the tab (optionally cropped to the element) to a webm data URL.
+- `src/lib/` — Shared types, the Claude prompt builder, the runtime-data serializer, the
+  payload digest, the response parser, and storage/history helpers.
 
 ## Storage Model
 
-- **`chrome.storage.local`**: the user's Claude API key, and optionally the last N analysis
-  results for quick re-view. Nothing else persists.
-- No database. No remote storage. No file/blob storage.
+- **`chrome.storage.local`**: the user's Claude API key (`claudeApiKey`), and the last 5
+  analysis results for quick re-view (`recentAnalyses`, slim stats + result, never the full
+  runtime dump). Nothing else persists.
+- No database. No remote storage. No file/blob storage. Recording clips are live-view only,
+  never persisted (webms would blow the storage quota).
+
+## Permissions (manifest.config.ts)
+
+- **`permissions`**: `sidePanel`, `storage`, `activeTab` (covers `captureVisibleTab` for the
+  element thumbnail and `tabCapture` for recording), `tabCapture`, `offscreen`.
+- **`host_permissions`**: `https://api.anthropic.com/*` — the background worker calls Claude
+  directly (single-user V1; see Invariant 4).
+- **`sandbox.pages`**: `src/sandbox/preview.html`, with a locked `content_security_policy.sandbox`
+  (`default-src 'none'; script-src 'self' 'unsafe-eval'; style-src 'unsafe-inline'; img-src * data:
+  blob:; font-src * data:`) — bundled script + eval only, no XHR/fetch; images/fonts allowed so a
+  cloned element renders with its real assets.
+- **`web_accessible_resources`**: `src/sandbox/preview.html` — MV3 blocks framing an extension page
+  unless it is declared web-accessible, and the panel embeds the sandbox in an iframe.
+- The offscreen recorder page is NOT a manifest field; it is created at runtime via
+  `chrome.offscreen` and bundled via an explicit `rollupOptions.input` in `vite.config.ts`.
 
 ## Auth and Access Model
 
@@ -59,4 +84,10 @@ Scoped to the V1 Chrome extension. No web app or backend service exists yet.
    never logged. This is acceptable only because V1 is single-user; a shared or published
    build must proxy the key through a backend.
 5. The extension reads from pages. It never mutates the inspected page's DOM beyond its own
-   highlight overlay.
+   highlight overlay. The one nuance: `injected/instrument.ts` monkey-patches page globals
+   in place (`window.gsap` methods, `ScrollTrigger.create`/`new`) to record creation-time
+   vars — but every wrapper RECORDS then calls through to the original unchanged, so page
+   animation behaviour is never altered. Recording, not mutation.
+6. Model-generated preview code runs ONLY inside the `src/sandbox/` page (opaque origin, no
+   extension APIs, network blocked by CSP). It is never executed in the panel, the content
+   world, or the service worker.
