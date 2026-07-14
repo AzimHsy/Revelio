@@ -8,7 +8,7 @@ import {
   isSplitTextPresent,
   type Scope,
 } from './gsap'
-import { collectInstrumented, installInstrumentation } from './instrument'
+import { collectHoverCandidates, collectInstrumented, installInstrumentation } from './instrument'
 
 // MAIN-world entry. Sits passive and answers EXTRACT requests from the
 // content script over window.postMessage. Never talks to chrome.* APIs and
@@ -74,5 +74,7 @@ function extract(target: SelectedTarget): RuntimePayload {
     cssAnimations: collectCssAnimations(scope),
     // Creation-time records whose targets match the selection (enhancement 2).
     instrumented: collectInstrumented(scope),
+    // Where to hover to trigger not-yet-registered animations (V2 Unit 1).
+    hoverCandidates: collectHoverCandidates(scope),
   }
 }

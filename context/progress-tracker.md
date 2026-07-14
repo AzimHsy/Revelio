@@ -7,7 +7,7 @@ Update this file after every meaningful implementation change.
 - **V2 — Vocabulary Bridge (branch `v2-vocabulary-bridge`)** — repositioning V1 from a
   click-first code generator into a scan-and-list, prompt-first, on-demand-AI tool. Single
   source of truth: `context/revelio-enhancements.md` (rev 2) + `context/current-architecture.md`.
-  **Unit 0 (doc sync) DONE** — see the V2 entry under Completed. Next: Unit 1 (hover candidates).
+  **Units 0–1 DONE** (doc sync; hover candidates) — see the V2 entries under Completed. Next: Unit 2 (scan & list).
 - **V1 pipeline complete + streaming + previews + identification/precision enhancements** —
   inspect/capture → MAIN-world extraction → Claude analysis (streamed) →
   concept/explanation/code/parameters render progressively, plus a screenshot thumbnail of the
@@ -403,16 +403,38 @@ Update this file after every meaningful implementation change.
     4-field (`name | value | label | description`).
   - No feature code touched. `tsc --noEmit && vite build` green (docs-only change).
 
+- **V2 · Unit 1 — Hover candidates** — hover tweens don't exist until triggered, so the scan
+  can't see them; this records *where to hover* from two sources, without altering page behaviour.
+  - `src/lib/types.ts` — new `HoverCandidate { target, source:'listener'|'css', trigger, createdAt }`;
+    `RuntimePayload.hoverCandidates: HoverCandidate[]` (matched to the selection scope).
+  - `src/injected/instrument.ts` — `installHoverTrap()` (called from `installInstrumentation()`)
+    wraps `EventTarget.prototype.addEventListener`: a page registering `mouseenter`/`mouseover` on
+    an Element records a deduped candidate (cap 100), then the original runs with the exact same args
+    (record-then-call-through — invariant 5). Second source: `collectHoverCandidates(scope)` reads the
+    CSSOM at collect time for `:hover` rules that set `transition`/`transform`/`animation`
+    (same-origin sheets only; `sheet.cssRules` SecurityError on cross-origin → skipped silently;
+    recurses `@media`/`@supports`; base selector = the part before `:hover`, e.g. `.card:hover .icon`
+    → `.card`). CSS reading is lazy (sheets aren't parsed at document_start); the listener trap is
+    installed at document_start so it catches load-time registrations.
+  - `src/injected/main.ts` — `extract()` now includes `hoverCandidates: collectHoverCandidates(scope)`
+    in the payload (exposed alongside `instrumented`; the scan in Unit 2 is the primary consumer).
+  - Not wired to the digest/prompt/UI this unit (per brief scope) — hover candidates ride the EXTRACT
+    payload only, for Unit 2's scan to build on. `tsc --noEmit && vite build` green.
+
 ## In Progress
 
-- None. V2 Unit 0 (doc sync) complete. Ready to start **V2 Unit 1 — Hover candidates**
-  (extend `instrument.ts` to wrap `addEventListener` for `mouseenter`/`mouseover` + read
-  same-origin `:hover` CSSOM rules; add `HoverCandidate` to types). See `revelio-enhancements.md`.
+- None. V2 Unit 1 (hover candidates) complete + green. Awaiting a live Chrome pass (see Unit 1 accept
+  criteria below) and Azim's go for **Unit 2 — Scan & list**.
+
+### Unit 1 — live accept check (reload the extension card after building)
+- On a site with a GSAP `mouseenter` button, the candidate appears in the payload after load
+  **without hovering** (listener trap fired at registration time).
+- Hovering that element once puts the real tween in the instrumented registry (existing E2 path).
+- A page with cross-origin stylesheets doesn't throw (CSS read skips them silently).
 
 ## Next Up (V2 — see `context/revelio-enhancements.md`)
 
-1. **Unit 1 — Hover candidates**: registry can't see hover tweens until triggered; record where
-   to hover (wrapped `addEventListener` + `:hover` CSSOM), never altering page behaviour.
+1. ~~**Unit 1 — Hover candidates**~~ **DONE** — wrapped `addEventListener` + `:hover` CSSOM, no behaviour change.
 2. **Unit 2 — Scan & list**: new `scan.ts` merges registry + live + CSS + hover candidates into
    a deduped `ScanItem[]`; new `PANEL_SCAN`/`SCAN`/`SCAN_RESULT` messages; `AnimationList` UI; pure
    JS, zero API calls; row-hover highlights on page.

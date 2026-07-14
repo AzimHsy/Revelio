@@ -115,6 +115,24 @@ export interface InstrumentedRecord {
   createdAt: number
 }
 
+/**
+ * A place the user can hover to trigger an animation the scan can't see yet —
+ * hover tweens don't exist until fired (V2 Unit 1). Discovered two ways at
+ * document_start / collect time: a wrapped `addEventListener` for
+ * `mouseenter`/`mouseover` on an Element, or a same-origin CSS `:hover` rule
+ * that sets `transition`/`transform`/`animation`.
+ */
+export interface HoverCandidate {
+  /** tag#id.class descriptor of the element to hover. */
+  target: string
+  /** Whether it came from a JS listener or a CSS `:hover` rule. */
+  source: 'listener' | 'css'
+  /** Listener: the event name (`mouseenter`/`mouseover`). CSS: the base selector. */
+  trigger: string
+  /** Discovery time (page performance.now-ish ms). */
+  createdAt: number
+}
+
 export interface RuntimePayload {
   gsapVersion: string | null
   splitTextPresent: boolean
@@ -130,6 +148,11 @@ export interface RuntimePayload {
    * on `window` (ESM-bundled) — the snapshot readers above are the fallback.
    */
   instrumented: InstrumentedRecord[]
+  /**
+   * Places to hover to trigger animations not yet in the registry (V2 Unit 1).
+   * Matched to the selection scope. The scan (Unit 2) is the primary consumer.
+   */
+  hoverCandidates: HoverCandidate[]
 }
 
 // ---------------------------------------------------------------------------

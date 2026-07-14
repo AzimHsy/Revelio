@@ -1,5 +1,5 @@
 import { describeNode, toJsonSafe } from '../lib/serialize'
-import type { InstrumentedRecord, JsonValue } from '../lib/types'
+import type { HoverCandidate, InstrumentedRecord, JsonValue } from '../lib/types'
 import { intersectsViewport, type Scope } from './gsap'
 
 // Load-time GSAP instrumentation (enhancement 2). Runs in the MAIN world at
@@ -41,6 +41,8 @@ export function installInstrumentation(): void {
     // A locked-down page (frozen window, defineProperty blocked) — give up
     // silently; the snapshot readers remain the fallback.
   }
+  // Independent of the GSAP traps: catch hover listeners as the page wires them.
+  installHoverTrap()
 }
 
 /** Records whose targets match the selection, serialized for the payload. */
@@ -57,6 +59,172 @@ export function collectInstrumented(scope: Scope): InstrumentedRecord[] {
     if (matched.length >= 40) break
   }
   return matched
+}
+
+// ---------------------------------------------------------------------------
+// Hover candidates (V2 Unit 1) — where to hover to trigger animations that
+// aren't in the registry yet. Two sources: JS listeners the page wires up
+// (caught live via a wrapped addEventListener), and same-origin CSS `:hover`
+// rules that set motion (read from the CSSOM at collect time, since sheets
+// aren't parsed yet at document_start).
+// ---------------------------------------------------------------------------
+
+const HOVER_EVENTS = new Set(['mouseenter', 'mouseover'])
+const HOVER_MOTION_PROPS = ['transition', 'transition-property', 'transform', 'animation', 'animation-name']
+const MAX_HOVER_CANDIDATES = 100
+
+interface RawHoverListener {
+  target: string
+  element: Element
+  trigger: string
+  createdAt: number
+}
+const hoverListeners: RawHoverListener[] = []
+const hoverListenerSeen = new Set<string>()
+let hoverTrapInstalled = false
+
+// Wrap EventTarget.prototype.addEventListener so a page registering
+// mouseenter/mouseover on an Element records a candidate. Record-then-call-
+// through: the original is always invoked with the exact same args, so page
+// behaviour is untouched (architecture.md → invariant 5).
+function installHoverTrap(): void {
+  if (hoverTrapInstalled) return
+  const proto = EventTarget.prototype as unknown as {
+    addEventListener: (...args: unknown[]) => unknown
+  }
+  const original = proto.addEventListener
+  if (typeof original !== 'function') return
+  try {
+    proto.addEventListener = function (this: EventTarget, ...args: unknown[]) {
+      try {
+        const type = args[0]
+        if (typeof type === 'string' && HOVER_EVENTS.has(type) && this instanceof Element) {
+          recordHoverListener(this, type)
+        }
+      } catch {
+        /* recording must never break the page */
+      }
+      return original.apply(this, args)
+    }
+    hoverTrapInstalled = true
+  } catch {
+    /* prototype not writable — skip; CSS :hover rules are still a source */
+  }
+}
+
+function recordHoverListener(el: Element, trigger: string): void {
+  if (hoverListeners.length >= MAX_HOVER_CANDIDATES) return
+  const target = describeNode(el)
+  const key = `${target}|${trigger}`
+  if (hoverListenerSeen.has(key)) return
+  hoverListenerSeen.add(key)
+  hoverListeners.push({ target, element: el, trigger, createdAt: nowMs() })
+}
+
+/** Hover candidates matching the selection (JS listeners + CSS :hover rules). */
+export function collectHoverCandidates(scope: Scope): HoverCandidate[] {
+  const out: HoverCandidate[] = []
+  const seen = new Set<string>()
+  const push = (candidate: HoverCandidate): boolean => {
+    const key = `${candidate.target}|${candidate.source}|${candidate.trigger}`
+    if (!seen.has(key)) {
+      seen.add(key)
+      out.push(candidate)
+    }
+    return out.length < MAX_HOVER_CANDIDATES
+  }
+
+  for (const listener of hoverListeners) {
+    if (!hoverElementMatchesScope(listener.element, scope)) continue
+    if (
+      !push({
+        target: listener.target,
+        source: 'listener',
+        trigger: listener.trigger,
+        createdAt: listener.createdAt,
+      })
+    ) {
+      return out
+    }
+  }
+  for (const candidate of collectCssHoverCandidates(scope)) {
+    if (!push(candidate)) return out
+  }
+  return out
+}
+
+// CSS `:hover` rules that set motion. Same-origin sheets only — reading
+// `sheet.cssRules` throws a SecurityError for cross-origin, which we swallow.
+function collectCssHoverCandidates(scope: Scope): HoverCandidate[] {
+  const out: HoverCandidate[] = []
+  let sheets: CSSStyleSheet[]
+  try {
+    sheets = Array.from(document.styleSheets)
+  } catch {
+    return out
+  }
+  for (const sheet of sheets) {
+    let rules: CSSRuleList
+    try {
+      rules = sheet.cssRules // cross-origin → throws, skip silently
+    } catch {
+      continue
+    }
+    collectCssHoverRules(rules, scope, out)
+    if (out.length >= MAX_HOVER_CANDIDATES) break
+  }
+  return out
+}
+
+function collectCssHoverRules(rules: CSSRuleList, scope: Scope, out: HoverCandidate[]): void {
+  for (const rule of Array.from(rules)) {
+    if (out.length >= MAX_HOVER_CANDIDATES) return
+    if (rule instanceof CSSStyleRule) {
+      if (!rule.selectorText.includes(':hover')) continue
+      if (!ruleSetsMotion(rule.style)) continue
+      addCssHoverCandidates(rule, scope, out)
+    } else if (typeof CSSGroupingRule !== 'undefined' && rule instanceof CSSGroupingRule) {
+      collectCssHoverRules(rule.cssRules, scope, out) // @media / @supports
+    }
+  }
+}
+
+function ruleSetsMotion(style: CSSStyleDeclaration): boolean {
+  return HOVER_MOTION_PROPS.some((prop) => style.getPropertyValue(prop) !== '')
+}
+
+function addCssHoverCandidates(rule: CSSStyleRule, scope: Scope, out: HoverCandidate[]): void {
+  for (const base of hoverBaseSelectors(rule.selectorText)) {
+    let elements: Element[]
+    try {
+      elements = Array.from(document.querySelectorAll(base))
+    } catch {
+      continue // unsupported/invalid base selector
+    }
+    for (const el of elements) {
+      if (out.length >= MAX_HOVER_CANDIDATES) return
+      if (!hoverElementMatchesScope(el, scope)) continue
+      out.push({ target: describeNode(el), source: 'css', trigger: base, createdAt: nowMs() })
+    }
+  }
+}
+
+// The element you hover is the one bearing `:hover`; return the selector up to
+// (excluding) each `:hover` pseudo. `.card:hover .icon` → `.card`; `.btn:hover` → `.btn`.
+function hoverBaseSelectors(selectorText: string): string[] {
+  const bases: string[] = []
+  for (const selector of selectorText.split(',')) {
+    const idx = selector.indexOf(':hover')
+    if (idx === -1) continue
+    const base = selector.slice(0, idx).trim()
+    if (base) bases.push(base)
+  }
+  return bases
+}
+
+function hoverElementMatchesScope(el: Element, scope: Scope): boolean {
+  if (scope === 'viewport') return intersectsViewport(el)
+  return scope === el || scope.contains(el) || el.contains(scope)
 }
 
 // ---------------------------------------------------------------------------
