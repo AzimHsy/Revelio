@@ -55,13 +55,22 @@ panel is small enough not to need it.
 
 ## Layout Patterns
 
-- Side panel: single vertical column — header (status + controls), then stacked result
-  sections in order: concept → explanation → code → parameters.
+- Side panel: single vertical column — header (status + controls), then the body.
+- **Scan list** (primary): a `Scan page` / `Re-scan` control above a list of animation rows,
+  each showing the target label + a kind badge + a source badge (`source`/`live`/`css`/`hover?`).
+  Hovering a row highlights that element on the page.
+- **Brief (prompt-first)**: a picked scan item renders in order **concept → explanation →
+  parameters (with SOURCE/PARTIAL/GUESS chips) → prompt**. The prompt block is the product:
+  full-width, with an accent **Copy prompt** button as the primary call to action. A
+  **Deep analyse** button sits below it (secondary; visually primary when the concept is
+  `unclassified`). Deep-analyse results additionally show GSAP code + a live preview after the prompt.
+- Legacy / streaming Claude results keep the older code-first order (concept → explanation →
+  code → preview → parameters) with a blinking caret while streaming.
 - Code blocks: full-width mono block with a copy button in the corner.
-- Selection state: a highlight overlay drawn on the inspected element by the content
-  script — not by the panel.
-- Empty / idle state: a short prompt telling the user to click an element or press
-  `Ctrl+Shift+A`.
+- Selection state: a highlight overlay drawn on the inspected element by the content script —
+  not by the panel (reused to flash a scanned element on row hover).
+- Empty / idle state: a short prompt telling the user to Scan the page (or click an element /
+  press `Ctrl+Shift+A` as the secondary path).
 
 ## Icons
 

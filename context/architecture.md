@@ -29,8 +29,10 @@ Scoped to the V1 Chrome extension. No web app or backend service exists yet.
   `window.gsap` directly.
 - `src/injected/` — Page-context script (MAIN world). The only place that can read the
   page's live `window.gsap` / `ScrollTrigger` objects. Serializes runtime data and posts
-  it back to the content script. Also installs the document_start instrumentation trap
-  (`instrument.ts`) that records GSAP calls at creation time.
+  it back to the content script. Installs the document_start instrumentation traps
+  (`instrument.ts` — GSAP creation-time records + hover candidates), answers `EXTRACT` and
+  `SCAN` (`scan.ts` merges every animation into a `ScanItem[]`), and exposes the read-only
+  `window.__revelio__` global (`global.ts`).
 - `src/sandbox/` — Sandboxed page (opaque origin, no extension APIs, network blocked by
   its own CSP). The single place model-generated GSAP preview code is allowed to execute
   (`new Function('gsap', code)`). Embedded by the side panel in an `<iframe>`.
@@ -38,7 +40,28 @@ Scoped to the V1 Chrome extension. No web app or backend service exists yet.
   which a service worker cannot hold. The worker mints a `tabCapture` streamId and hands
   it here; the doc records the tab (optionally cropped to the element) to a webm data URL.
 - `src/lib/` — Shared types, the Claude prompt builder, the runtime-data serializer, the
-  payload digest, the response parser, and storage/history helpers.
+  payload digest, the response parser, the Tier 1 rule classifier + template brief
+  (`classify.ts` / `brief.ts`), and storage/history helpers.
+
+## Capture & analysis (V2)
+
+Two capture entry points, both answered by the MAIN world over the postMessage bridge:
+
+- **Scan** (primary) — `SCAN` → `scan.ts` returns a whole-page, viewport-scoped `ScanItem[]`
+  (instrumented registry + live GSAP + CSS + hover candidates, deduped). Pure JS, zero API calls.
+  The panel lists it; the user picks one.
+- **Extract** (secondary) — `EXTRACT` → a per-element `RuntimePayload`, for click-to-inspect and
+  for Deep-analysing an element capture.
+
+Analysis has two tiers:
+
+- **Tier 1 — rules (offline, free, instant)**: runs in the panel. `classify(record)` maps the
+  animation's signature to a slug from the single controlled vocabulary (`CONCEPT_VOCABULARY`,
+  owned by `prompt.ts` and imported — never duplicated); `buildBrief` produces an `AnalysisResult`
+  (`tier:'rules'`) with real captured parameters and a paste-ready prompt. No network.
+- **Tier 2 — deep (Claude, on demand)**: reached only via `PANEL_DEEP_ANALYZE`; the background
+  worker streams `analyzeCapture` (the sole Claude call site, invariant 3) and stamps `tier:'deep'`.
+  Selecting/scanning never auto-calls Claude.
 
 ## Storage Model
 

@@ -545,11 +545,12 @@ Update this file after every meaningful implementation change.
 
 ## In Progress
 
-- None. **V2 COMPLETE** — Units 0–5 (core) + Unit 6 browser-agent global. The Unit 6 **MCP bridge**
-  sub-piece is deliberately deferred (optional; not selected). Recommended closing step: regenerate
-  `context/current-architecture.md` and sync the narrative context docs (`project-overview.md` capture
-  model/output, `architecture.md` scan/extraction boundaries, `code-standards.md` vocabulary/classifier,
-  `ui-context.md` list/brief UI).
+- None. **V2 COMPLETE + docs synced.** Units 0–5 (core) + Unit 6 browser-agent global; the Unit 6
+  **MCP bridge** sub-piece is deliberately deferred (optional; not selected). End-of-V2 doc pass done:
+  `current-architecture.md` regenerated from the code, and the narrative specs synced to the
+  scan-first/prompt-first/on-demand-AI model (`project-overview.md` capture model + output;
+  `architecture.md` capture & AI-tiers boundaries + browser-agent global; `code-standards.md`
+  delimiter-not-JSON + one-vocabulary classifier + full folder list; `ui-context.md` scan-list + brief layout).
 
 ### Live accept checks (reload the extension card after building)
 - **Unit 6** — on a GSAP site, `window.__revelio__.scan()` from the page console/an agent returns the
@@ -580,7 +581,8 @@ Update this file after every meaningful implementation change.
    + `<<<PROMPT>>>` section; pick→Tier 1 brief (zero network); Deep analyse escalates on demand.
 6. ~~**Unit 6 — Browser-agent global**~~ **DONE** — read-only `window.__revelio__` (`scan`/`get`).
    Its MCP-bridge sub-piece remains **deferred** (optional; not selected).
-7. **End-of-V2 (recommended)**: regenerate `current-architecture.md`; sync narrative context docs.
+7. ~~**End-of-V2 — doc pass**~~ **DONE** — regenerated `current-architecture.md`; synced
+   project-overview / architecture / code-standards / ui-context to the V2 model.
 
 ## Superseded — original V1 verification checklist (kept for reference)
 

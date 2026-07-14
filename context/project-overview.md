@@ -3,11 +3,21 @@
 ## Overview
 
 Revelio is a Chrome extension that identifies the animation techniques behind any
-website and turns them into ready-to-use GSAP code. When a developer sees a polished,
-awwwards-level animation but doesn't know what the technique is called, Revelio extracts
-the live animation data running in the page, sends it to Claude, and returns the concept
-name, an explanation, the GSAP code, and a parameter breakdown. V1 is a personal tool for
-a single developer (the author) — no accounts, no web app, no backend service.
+website and hands them to your own coding agent as a **paste-ready prompt** (plus real
+parameters and optional GSAP code). When a developer sees a polished, awwwards-level
+animation but doesn't know what the technique is called, Revelio scans the page's live
+animation data, names the concept, and produces a brief they can drop into Claude Code /
+Cursor / Codex. It is a personal tool for a single developer (the author) — no accounts,
+no web app, no backend service.
+
+**V2 — vocabulary bridge.** Revelio is scan-first, prompt-first, and AI-on-demand:
+- **Scan-first**: it lists every animation the page exposes (from GSAP's own data +
+  CSS + hover candidates) and you pick from the list, instead of hit-testing the DOM.
+- **Prompt-first**: the primary output is a concept name + real captured parameters + a
+  paste-ready prompt for the developer's own agent; full GSAP code + live preview are secondary.
+- **AI-on-demand**: a deterministic rule classifier produces a free, instant, offline
+  **Tier 1 brief** for the common cases; Claude is a **Deep analyse** escape hatch for the
+  compound minority. Daily use costs zero tokens.
 
 ## Goals
 
@@ -20,50 +30,57 @@ a single developer (the author) — no accounts, no web app, no backend service.
 
 ## Core User Flow
 
-1. Developer browses any website in Chrome.
-2. Opens the Revelio side panel.
-3. Clicks a specific element to inspect it, or presses `Ctrl+Shift+A` to capture the
-   current viewport / section.
-4. Revelio extracts the live animation runtime data (GSAP tweens, timelines,
-   ScrollTrigger, CSS animations) from the page.
-5. The data is sent to Claude, which identifies the concept and generates code.
-6. The side panel shows: concept name, explanation, GSAP code, and a parameter breakdown.
-7. Developer copies the code into their own project.
+1. Developer browses any website in Chrome and opens the Revelio side panel.
+2. Clicks **Scan page** — Revelio lists every animation it finds (GSAP registry + live
+   tweens/timelines/ScrollTriggers + CSS + hover candidates). Zero API calls.
+3. Hovers a row to highlight that element on the page, then clicks a row to pick it.
+4. An instant **Tier 1 brief** appears: concept name, interaction model, real captured
+   parameters (each SOURCE/PARTIAL/GUESS-labelled), and a paste-ready prompt (Copy = primary action).
+5. For a compound or `unclassified` case, the developer clicks **Deep analyse** — Claude
+   streams a richer result (adds GSAP code + a live preview) using the developer's own API key.
+6. Developer copies the prompt (or the code) into their own project / agent.
+
+Secondary path: click-to-inspect a single element (or `Ctrl+Shift+A` for the viewport) →
+capture summary → **Deep analyse** on demand. Selections no longer auto-call Claude.
 
 ## Features
 
-### Inspection
-- Click-to-inspect a single element.
-- Keyboard shortcut (`Ctrl+Shift+A`) to capture the current section / viewport state.
+### Capture
+- **Scan & list** (primary): data-driven — pick an animation from a list, not by hit-testing.
+- Click-to-inspect a single element; `Ctrl+Shift+A` to capture the current viewport (secondary).
+- Row hover highlights the element on the page.
 
 ### Runtime Extraction
-- Active GSAP tweens and their vars (duration, ease, stagger, etc.).
-- GSAP timelines and their child tweens.
-- ScrollTrigger instances (start, end, scrub, pin).
-- SplitText usage.
-- Clip-path animations.
-- CSS animations and transitions.
+- Instrumented GSAP calls captured at creation time (SOURCE-grade, incl. finished load-in reveals).
+- Live GSAP tweens/vars, timelines + child tweens, ScrollTrigger (start/end/scrub/pin).
+- Hover candidates (where to hover to trigger not-yet-fired animations).
+- SplitText usage, clip-path, CSS animations and transitions.
 
-### AI Analysis (Claude)
-- Concept name.
-- Plain-English explanation of the technique.
-- Ready-to-use GSAP code.
-- Parameter breakdown.
+### Tier 1 brief (rules — offline, free, instant)
+- Concept slug from a controlled vocabulary; interaction-model-first explanation.
+- Real captured parameters with honesty labels (SOURCE / PARTIAL / GUESS).
+- A paste-ready prompt for the developer's own coding agent.
+
+### Deep analyse (Claude — on demand)
+- Everything above plus ready-to-use GSAP code, a live sandboxed preview, and a model-written prompt.
 
 ### Output
-- Proper Chrome side panel, single scrollable view, English.
+- Chrome side panel, single scrollable view, English. Prompt-first presentation.
+- Read-only `window.__revelio__` global (scan snapshot) for browser-driving agents.
 
 ## Scope
 
-### In Scope (V1)
+### In Scope (V1 + V2)
 - Chrome extension (Manifest V3), personal / self-use.
-- Click + keyboard-shortcut inspection.
-- GSAP + ScrollTrigger + SplitText + clip-path + stagger + CSS animation extraction.
-- Claude API integration (`claude-sonnet-4-6`).
-- Side panel UI.
+- Scan-and-list capture (primary) + click / keyboard-shortcut inspection (secondary).
+- GSAP + ScrollTrigger + SplitText + clip-path + stagger + CSS animation extraction, plus
+  document_start instrumentation (creation-time SOURCE vars) and hover candidates.
+- Deterministic Tier 1 rule classifier + template brief (offline); Claude Deep analyse on demand
+  (`claude-sonnet-4-6`).
+- Prompt-first side panel UI; read-only `window.__revelio__` browser-agent global.
 
-### Out of Scope (V1 — future enhancements)
-- Page transitions (V2).
+### Out of Scope (future / deferred)
+- MCP bridge (local Node server + WebSocket) — designed, deferred; the read-only global shipped instead.
 - WebGL / Canvas / Three.js animations (V3).
 - Web app / playground with live preview + tweak.
 - Accounts, auth, multi-user, database.
@@ -72,8 +89,9 @@ a single developer (the author) — no accounts, no web app, no backend service.
 
 ## Success Criteria
 
-1. On a real GSAP-powered site, clicking an animated element returns a correct concept
-   name and usable GSAP code inside the side panel.
-2. The `Ctrl+Shift+A` capture returns meaningful data for a scroll-driven section.
-3. The extension runs entirely locally with the developer's own API key — no backend
-   required.
+1. On a real GSAP-powered site, **Scan** lists the page's animations with sensible targets,
+   and picking one yields a correct concept + real SOURCE parameters + a paste-ready prompt —
+   instantly and offline (zero API calls).
+2. **Deep analyse** on a compound/`unclassified` pick streams a richer Claude result (adds
+   usable GSAP code + preview) using the developer's own key; a missing key blocks only Deep analyse.
+3. The extension runs entirely locally; the daily flow needs no backend and no API key.

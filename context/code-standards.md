@@ -39,10 +39,23 @@
 
 - Build the prompt in one place (`src/lib/prompt.ts`) so it can be iterated without touching
   call sites.
-- The API call lives only in the background worker.
-- Always request a predictable, structured response shape from Claude, and parse it
-  defensively (strip code fences, handle malformed JSON).
+- The API call lives only in the background worker, and is reached only on demand (Deep
+  analyse) — never auto-triggered by a selection or a scan.
+- The response is **delimiter-sectioned plain text** (`<<<CONCEPT>>>` / `EXPLANATION` / `CODE` /
+  `PARAMETERS` / `PREVIEW` / `PROMPT`), NOT JSON — so it parses incrementally while streaming.
+  Parse it defensively in `src/lib/analysis.ts` (partial-tolerant, strip stray code fences,
+  tolerate missing sections); never assume a section is present.
 - Never hardcode the API key; always read it from `chrome.storage.local`.
+
+## Classifier & Vocabulary (Tier 1)
+
+- There is exactly ONE concept vocabulary: `CONCEPT_VOCABULARY` in `src/lib/prompt.ts`. The rule
+  classifier (`src/lib/classify.ts`) imports it — never define a second list.
+- The Tier 1 path (`classify` + `buildBrief`) is deterministic and offline: no network, no model.
+  Every parameter it surfaces must be real (registry/live → `SOURCE`); inferred defaults → `GUESS`.
+  Never present a guess as certain.
+- Classifier rules are first-match and easy to extend; an unmatched signature returns
+  `unclassified` and is left to Deep analyse — do not force a weak match.
 
 ## Data and Storage
 
@@ -51,8 +64,12 @@
 
 ## File Organization
 
-- `src/sidepanel/` — React UI for the side panel.
-- `src/background/` — service worker + Claude call.
-- `src/content/` — selection, highlight overlay, relay.
-- `src/injected/` — MAIN-world runtime extractor.
-- `src/lib/` — shared types, prompt builder, serializer.
+- `src/sidepanel/` — React UI for the side panel (scan list, brief, history, recording).
+- `src/background/` — service worker + the on-demand Claude call.
+- `src/content/` — selection, highlight overlay, scan/extract relay.
+- `src/injected/` — MAIN-world: runtime extractor, instrumentation + hover traps, `scan`, and the
+  read-only `window.__revelio__` global.
+- `src/sandbox/` — opaque-origin page; the only place model-generated preview code runs.
+- `src/offscreen/` — offscreen document hosting the `MediaRecorder`.
+- `src/lib/` — shared types, prompt builder, serializer, digest, response parser, and the Tier 1
+  classifier + template brief.
