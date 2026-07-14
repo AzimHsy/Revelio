@@ -7,7 +7,7 @@ Update this file after every meaningful implementation change.
 - **V2 — Vocabulary Bridge (branch `v2-vocabulary-bridge`)** — repositioning V1 from a
   click-first code generator into a scan-and-list, prompt-first, on-demand-AI tool. Single
   source of truth: `context/revelio-enhancements.md` (rev 2) + `context/current-architecture.md`.
-  **Units 0–2 DONE** (doc sync; hover candidates; scan & list) — see the V2 entries under Completed. Next: Unit 3 (rule classifier + template brief).
+  **Units 0–3 DONE** (doc sync; hover candidates; scan & list; classifier + brief) — see the V2 entries under Completed. Next: Unit 4 (panel: brief-first presentation).
 - **V1 pipeline complete + streaming + previews + identification/precision enhancements** —
   inspect/capture → MAIN-world extraction → Claude analysis (streamed) →
   concept/explanation/code/parameters render progressively, plus a screenshot thumbnail of the
@@ -452,12 +452,40 @@ Update this file after every meaningful implementation change.
   - Row click is selection-only this unit (no brief/network yet — that's Unit 3). `tsc --noEmit &&
     vite build` green (188 modules).
 
+- **V2 · Unit 3 — Rule classifier + template brief (Tier 1, deterministic)** — the vocabulary is
+  finite and most concepts have mechanical signatures, so rules + template give an instant, free,
+  cannot-hallucinate brief where every captured value is SOURCE by construction. `lib`-only (pure
+  functions), consumed by Units 4–5 — same layering as Unit 1's hover candidates feeding Unit 2.
+  - `src/lib/classify.ts` (new) — `classify(record) → {slug, confidence}` against the ONE vocabulary
+    (imports `CONCEPT_VOCABULARY` from `prompt.ts`; guards that the emitted slug is in it). First-match
+    rules: `st.pin`→pinned-scroll · scrub set→scroll-scrub · ST+y/opacity→fade-up-on-enter ·
+    clipPath→clip-path-wipe · stagger(+char-ish targets)→split-text-chars / else stagger-reveal ·
+    repeat:-1 + x/xPercent→marquee-loop · hover(+scale)→hover-scale. No match → `unclassified`
+    (left to Tier 2 / Deep analyse). Reads inline `vars.scrollTrigger` too, not just live ST records.
+  - `src/lib/brief.ts` (new) — `buildBrief(item, slug) → AnalysisResult` in the existing shape so
+    ResultView/history render it unchanged: concept = slug; explanation opens `Interaction model: …`
+    (scroll/hover/time) + a per-slug template line; parameters = real captured vars (registry/live →
+    SOURCE, hover?/inferred → GUESS) plus ScrollTrigger start/end/scrub/pin and CSS duration/easing;
+    **`gsapCode` = the filled paste-ready prompt** (per brief — Unit 4 presents it as the Prompt);
+    `previewCode: ''`; `tier: 'rules'`.
+  - `src/lib/types.ts` — `AnalysisTier = 'rules' | 'deep'`; optional `AnalysisResult.tier` (absent on
+    pre-V2 history → still renders).
+  - **Verified** by exercising both functions standalone (tsx): a pinned ScrollTrigger →
+    `pinned-scroll` with `start 120 · end 880 · scrub true · pin true` all SOURCE + a paste-ready
+    prompt; scroll-scrub, split-text-chars, hover-scale, and `unclassified` all correct;
+    `previewCode` empty and `tier:'rules'` on each. `tsc --noEmit && vite build` green.
+  - Not wired to the panel/worker this unit (per brief touch list) — `classify`/`buildBrief` are pure
+    building blocks; the pick→brief→render flow lands in Unit 4 (presentation) + Unit 5 (remove
+    auto-analyze, add Deep analyse). Bundles unchanged (tree-shaken until imported).
+
 ## In Progress
 
-- None. V2 Unit 2 (scan & list) complete + green. Awaiting a live Chrome pass (accept criteria below)
-  and Azim's go for **Unit 3 — Rule classifier + template brief**.
+- None. V2 Unit 3 (classifier + brief) complete + green + logic-verified. Awaiting Azim's go for
+  **Unit 4 — Panel: brief-first presentation**.
 
 ### Live accept checks (reload the extension card after building)
+- **Unit 3** — end-to-end pick→brief renders once Unit 4/5 wire it; the deterministic logic is
+  already verified (pinned ScrollTrigger → `pinned-scroll` brief with SOURCE params + prompt, offline).
 - **Unit 2** — on gsap.com, Scan lists animations with sensible targets incl. a registry-only
   (finished) one; hovering a row highlights that element on the page; the scan makes **zero** network
   calls; a `hover?` candidate upgrades to a real registry/live item after one live hover + Re-scan.
@@ -469,8 +497,8 @@ Update this file after every meaningful implementation change.
 1. ~~**Unit 1 — Hover candidates**~~ **DONE** — wrapped `addEventListener` + `:hover` CSSOM, no behaviour change.
 2. ~~**Unit 2 — Scan & list**~~ **DONE** — `scan.ts` merges registry/live/CSS/hover into a deduped
    `ScanItem[]`; `PANEL_SCAN`/`SCAN`/`SCAN_RESULT` + highlight messages; `AnimationList` UI; zero API calls.
-3. **Unit 3 — Rule classifier + template brief**: `classify.ts` + `brief.ts` produce a
-   deterministic SOURCE-only brief + paste-ready prompt against `CONCEPT_VOCABULARY` (offline, free).
+3. ~~**Unit 3 — Rule classifier + template brief**~~ **DONE** — `classify.ts` + `brief.ts`: deterministic
+   SOURCE-only brief + paste-ready prompt against `CONCEPT_VOCABULARY` (offline, free); `tier:'rules'`.
 4. **Unit 4 — Brief-first panel**: reorder ResultView to Concept → Explanation → Parameters →
    Prompt (Copy = primary CTA); code + preview demoted; old history still renders.
 5. **Unit 5 — Demote Claude to Deep analyse**: remove auto-analyze on select; add

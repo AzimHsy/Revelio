@@ -315,20 +315,33 @@ export interface AnalysisParameter {
   description: string
 }
 
+/**
+ * Which path produced an AnalysisResult (V2):
+ * - `rules` — deterministic Tier 1 brief from the rule classifier (Unit 3): free,
+ *   instant, offline; every captured value is SOURCE by construction.
+ * - `deep`  — Claude "Deep analyse" (Unit 5).
+ * Absent on pre-V2 history entries (they render as before).
+ */
+export type AnalysisTier = 'rules' | 'deep'
+
 export interface AnalysisResult {
   /** The animation concept's name, e.g. "Staggered SplitText reveal". */
   concept: string
   /** Plain-English explanation of the technique. */
   explanation: string
-  /** Ready-to-use GSAP code. */
+  /** Ready-to-use GSAP code. For a `rules`-tier brief this holds the paste-ready
+   *  prompt instead (Unit 4 presents it as the Prompt). */
   gsapCode: string
   parameters: AnalysisParameter[]
   /**
    * Self-contained, core-gsap-only code that recreates the technique on the
    * sandbox demo stage (no ScrollTrigger/SplitText). Optional — empty for
-   * captures analyzed before this feature, so old history still renders.
+   * captures analyzed before this feature (and for `rules`-tier briefs), so old
+   * history still renders.
    */
   previewCode: string
+  /** Which tier produced this (V2). Absent on pre-V2 history entries. */
+  tier?: AnalysisTier
 }
 
 /** Slim capture stats stored with a history entry (not the full payload). */
