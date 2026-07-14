@@ -179,6 +179,54 @@ export interface ExtractResponse {
 }
 
 // ---------------------------------------------------------------------------
+// Scan (V2 Unit 2) — data-driven capture. `scan()` lists every animation the
+// page exposes (instrumented registry + live GSAP + CSS + hover candidates) so
+// the user picks from a list instead of hit-testing the DOM. Pure JS, no network.
+// ---------------------------------------------------------------------------
+
+export type ScanSource = 'registry' | 'live' | 'css' | 'hover?'
+
+/** Serialized evidence behind a ScanItem, carried for the Unit 3 classifier. */
+export interface ScanRecord {
+  source: ScanSource
+  /** GSAP method / css kind / 'tween' / 'timeline' / 'ScrollTrigger' / 'hover'. */
+  method: string
+  targets: string[]
+  vars: Record<string, JsonValue>
+  /** Present for ScrollTrigger items. */
+  scrollTrigger?: ScrollTriggerData | null
+  /** Present for CSS animation/transition items. */
+  css?: CssAnimationData | null
+}
+
+/** One animation the scan surfaced, rendered as a row in the panel list. */
+export interface ScanItem {
+  id: string
+  /** tag#id.class descriptor of the animated element (also used to highlight it). */
+  target: string
+  /** Lightweight concept guess (badge); refined by the Unit 3 classifier. */
+  kindGuess: string
+  source: ScanSource
+  record: ScanRecord
+}
+
+export interface ScanRequest {
+  source: typeof BRIDGE_SOURCE
+  direction: 'to-injected'
+  type: 'SCAN'
+  requestId: string
+}
+
+export interface ScanResponse {
+  source: typeof BRIDGE_SOURCE
+  direction: 'from-injected'
+  type: 'SCAN_RESULT'
+  requestId: string
+  items: ScanItem[]
+  error: string | null
+}
+
+// ---------------------------------------------------------------------------
 // chrome.runtime messaging: content → background → sidepanel.
 // ---------------------------------------------------------------------------
 
@@ -192,6 +240,12 @@ export type ToContentMessage =
   // Scroll the element out of view then back, to re-fire scroll-triggered
   // animations during a recording.
   | { type: 'REPLAY_SCROLL'; selector: string }
+  // Run a page scan (V2 Unit 2) — the content script does the MAIN-world round
+  // trip and replies with SCAN_RESULT.
+  | { type: 'SCAN' }
+  // Flash the highlight overlay on a scanned element while its row is hovered.
+  | { type: 'HIGHLIGHT_TARGET'; selector: string }
+  | { type: 'CLEAR_HIGHLIGHT' }
 
 /** Messages the content script emits toward the background worker. */
 export type FromContentMessage =
@@ -209,6 +263,8 @@ export type FromContentMessage =
       payload: RuntimePayload | null
       clone?: ElementClone | null
     }
+  // Result of a page scan (V2 Unit 2). Relayed to the panel; never auto-analyzed.
+  | { type: 'SCAN_RESULT'; items: ScanItem[] }
 
 /** Commands the side panel sends to the background worker. */
 export type PanelCommand =
@@ -218,6 +274,10 @@ export type PanelCommand =
   | { type: 'PANEL_START_RECORD'; crop?: CropRect | null }
   | { type: 'PANEL_STOP_RECORD' }
   | { type: 'PANEL_REPLAY_SCROLL'; selector: string }
+  // V2 Unit 2 — scan the page and highlight a scanned element on row hover.
+  | { type: 'PANEL_SCAN' }
+  | { type: 'PANEL_HIGHLIGHT_TARGET'; selector: string }
+  | { type: 'PANEL_CLEAR_HIGHLIGHT' }
 
 // ---------------------------------------------------------------------------
 // Screen recording: worker ⇄ offscreen document (holds the MediaRecorder, since

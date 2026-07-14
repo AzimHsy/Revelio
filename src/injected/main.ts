@@ -1,4 +1,11 @@
-import { BRIDGE_SOURCE, type ExtractRequest, type ExtractResponse, type RuntimePayload, type SelectedTarget } from '../lib/types'
+import {
+  BRIDGE_SOURCE,
+  type ExtractRequest,
+  type ExtractResponse,
+  type RuntimePayload,
+  type ScanResponse,
+  type SelectedTarget,
+} from '../lib/types'
 import { collectCssAnimations } from './css'
 import {
   collectScrollTriggers,
@@ -9,6 +16,7 @@ import {
   type Scope,
 } from './gsap'
 import { collectHoverCandidates, collectInstrumented, installInstrumentation } from './instrument'
+import { scan } from './scan'
 
 // MAIN-world entry. Sits passive and answers EXTRACT requests from the
 // content script over window.postMessage. Never talks to chrome.* APIs and
@@ -26,17 +34,22 @@ window.addEventListener('message', (event: MessageEvent) => {
     !data ||
     data.source !== BRIDGE_SOURCE ||
     data.direction !== 'to-injected' ||
-    data.type !== 'EXTRACT' ||
-    typeof data.requestId !== 'string' ||
-    !data.target
+    typeof data.requestId !== 'string'
   ) {
     return
   }
+  if (data.type === 'EXTRACT' && data.target) {
+    handleExtract(data.requestId, data.target)
+  } else if (data.type === 'SCAN') {
+    handleScan(data.requestId)
+  }
+})
 
+function handleExtract(requestId: string, target: SelectedTarget): void {
   let payload: RuntimePayload | null = null
   let error: string | null = null
   try {
-    payload = extract(data.target)
+    payload = extract(target)
   } catch (err) {
     error = err instanceof Error ? err.message : 'extraction failed'
   }
@@ -45,12 +58,32 @@ window.addEventListener('message', (event: MessageEvent) => {
     source: BRIDGE_SOURCE,
     direction: 'from-injected',
     type: 'EXTRACT_RESULT',
-    requestId: data.requestId,
+    requestId,
     payload,
     error,
   }
   window.postMessage(response, '*')
-})
+}
+
+function handleScan(requestId: string): void {
+  let items: ScanResponse['items'] = []
+  let error: string | null = null
+  try {
+    items = scan()
+  } catch (err) {
+    error = err instanceof Error ? err.message : 'scan failed'
+  }
+
+  const response: ScanResponse = {
+    source: BRIDGE_SOURCE,
+    direction: 'from-injected',
+    type: 'SCAN_RESULT',
+    requestId,
+    items,
+    error,
+  }
+  window.postMessage(response, '*')
+}
 
 function extract(target: SelectedTarget): RuntimePayload {
   let scope: Scope = 'viewport'
